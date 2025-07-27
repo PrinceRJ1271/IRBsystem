@@ -32,6 +32,7 @@ $level_id = $_SESSION['level_id'];
       <li><a href="forms/letter_sent_form.php">IRB Letter Sent Form</a></li>
       <li><a href="forms/letter_sent_followup_form.php">Follow-up Form (Sent)</a></li>
       <li><a href="forms/letter_delivery_form.php">Letter Delivery Form</a></li>
+      <li><a href="search/quick_search.php">Quick Search</a></li>
     </ul>
 
   <?php elseif ($level_id == 2): ?>
@@ -46,6 +47,7 @@ $level_id = $_SESSION['level_id'];
       <li><a href="forms/letter_sent_form.php">IRB Letter Sent Form</a></li>
       <li><a href="forms/letter_sent_followup_form.php">Follow-up Form (Sent)</a></li>
       <li><a href="#">View Reports</a></li>
+      <li><a href="search/quick_search.php">Quick Search</a></li>
     </ul>
 
   <?php elseif ($level_id == 3): ?>
@@ -56,6 +58,7 @@ $level_id = $_SESSION['level_id'];
       <li><a href="forms/letter_received_followup_form.php">Follow-up Form (Received)</a></li>
       <li><a href="forms/letter_sent_form.php">IRB Letter Sent Form</a></li>
       <li><a href="forms/letter_sent_followup_form.php">Follow-up Form (Sent)</a></li>
+      <li><a href="search/quick_search.php">Quick Search</a></li>
     </ul>
 
   <?php elseif ($level_id == 4): ?>
@@ -63,6 +66,7 @@ $level_id = $_SESSION['level_id'];
     <ul>
       <li><a href="forms/letter_delivery_form.php">Letter Delivery Form</a></li>
       <li><a href="#">Track Deliveries</a></li>
+      <li><a href="search/quick_search.php">Quick Search</a></li>
     </ul>
 
   <?php else: ?>
