@@ -52,3 +52,11 @@ $level_id = $_SESSION['level_id'];
   <p><a href="logout.php">Logout</a></p>
 </body>
 </html>
+
+<?php if ($level_id == 2): ?>
+  <ul>
+    <li><a href="forms/client_form.php">Register Client</a></li>
+    <li><a href="forms/irb_branch_form.php">Add IRB Branch</a></li>
+    <li><a href="forms/letter_type_form.php">Add Letter Type</a></li>
+  </ul>
+<?php endif; ?>
