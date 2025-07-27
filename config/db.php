@@ -1,8 +1,8 @@
 <?php
 $host = "localhost";
 $db = "irb_system";
-$user = "root";
-$pass = "";
+$user = "irbuser";
+$pass = "strongpassword";
 
 $conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) {
