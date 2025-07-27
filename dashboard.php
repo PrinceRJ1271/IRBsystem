@@ -27,6 +27,11 @@ $level_id = $_SESSION['level_id'];
       <li><a href="forms/client_form.php">Register Client</a></li>
       <li><a href="forms/irb_branch_form.php">Add IRB Branch</a></li>
       <li><a href="forms/letter_type_form.php">Add Letter Type</a></li>
+      <li><a href="forms/letter_received_form.php">IRB Letter Received Form</a></li>
+      <li><a href="forms/letter_received_followup_form.php">Follow-up Form (Received)</a></li>
+      <li><a href="forms/letter_sent_form.php">IRB Letter Sent Form</a></li>
+      <li><a href="forms/letter_sent_followup_form.php">Follow-up Form (Sent)</a></li>
+      <li><a href="forms/letter_delivery_form.php">Letter Delivery Form</a></li>
     </ul>
 
   <?php elseif ($level_id == 2): ?>
@@ -36,6 +41,10 @@ $level_id = $_SESSION['level_id'];
       <li><a href="forms/client_form.php">Register Client</a></li>
       <li><a href="forms/irb_branch_form.php">Add IRB Branch</a></li>
       <li><a href="forms/letter_type_form.php">Add Letter Type</a></li>
+      <li><a href="forms/letter_received_form.php">IRB Letter Received Form</a></li>
+      <li><a href="forms/letter_received_followup_form.php">Follow-up Form (Received)</a></li>
+      <li><a href="forms/letter_sent_form.php">IRB Letter Sent Form</a></li>
+      <li><a href="forms/letter_sent_followup_form.php">Follow-up Form (Sent)</a></li>
       <li><a href="#">View Reports</a></li>
     </ul>
 
@@ -43,14 +52,16 @@ $level_id = $_SESSION['level_id'];
     <h3>Tax Senior Dashboard</h3>
     <ul>
       <li><a href="forms/client_form.php">Client Engagement Form</a></li>
-      <li><a href="#">Letter Received/Sent</a></li>
-      <li><a href="#">Follow-up Forms</a></li>
+      <li><a href="forms/letter_received_form.php">IRB Letter Received Form</a></li>
+      <li><a href="forms/letter_received_followup_form.php">Follow-up Form (Received)</a></li>
+      <li><a href="forms/letter_sent_form.php">IRB Letter Sent Form</a></li>
+      <li><a href="forms/letter_sent_followup_form.php">Follow-up Form (Sent)</a></li>
     </ul>
 
   <?php elseif ($level_id == 4): ?>
     <h3>Admin Staff Dashboard</h3>
     <ul>
-      <li><a href="#">Letter Delivery Form</a></li>
+      <li><a href="forms/letter_delivery_form.php">Letter Delivery Form</a></li>
       <li><a href="#">Track Deliveries</a></li>
     </ul>
 
