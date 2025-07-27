@@ -1,0 +1,16 @@
+# Enable URL rewriting
+RewriteEngine On
+
+# If the requested file or directory does not exist
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.+)$ index.php [QSA,L]
+
+# Custom 404 page
+ErrorDocument 404 /404.php
+
+# Block public access to hidden files
+<FilesMatch "^\.">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
