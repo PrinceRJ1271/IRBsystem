@@ -1,4 +1,11 @@
 <?php
-echo "<h1>IRB Letter Management System</h1>";
-phpinfo();
+session_start();
+
+if (isset($_SESSION['user_id'])) {
+    header("Location: dashboard.php");
+    exit();
+} else {
+    header("Location: login.php");
+    exit();
+}
 ?>
