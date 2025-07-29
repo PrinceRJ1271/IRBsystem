@@ -13,18 +13,54 @@ $level_id = $_SESSION['level_id'];
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <title>Dashboard - IRB Letter Management System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>IRB Letter Management System</title>
   <link rel="stylesheet" href="assets/vendors/mdi/css/materialdesignicons.min.css">
   <link rel="stylesheet" href="assets/vendors/css/vendor.bundle.base.css">
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="shortcut icon" href="assets/images/favicon.png" />
+  <style>
+    .hero-welcome {
+        background: linear-gradient(to right, #4e54c8, #8f94fb);
+        color: white;
+        border-radius: 8px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    .dashboard-card {
+        transition: all 0.3s ease-in-out;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+    .card-title {
+        font-weight: 600;
+        color: #343a40;
+    }
+    ul.list-arrow {
+        padding-left: 20px;
+        list-style-type: none;
+    }
+    ul.list-arrow li::before {
+        content: "➤";
+        color: #4e54c8;
+        margin-right: 8px;
+    }
+    ul.list-arrow li a {
+        text-decoration: none;
+        color: #444;
+        font-weight: 500;
+    }
+    ul.list-arrow li a:hover {
+        color: #4e54c8;
+    }
+  </style>
 </head>
 <body>
   <div class="container-scroller">
-
     <div class="container-fluid page-body-wrapper d-flex">
-
+      
       <!-- Sidebar -->
       <?php include 'includes/sidebar.php'; ?>
 
@@ -35,16 +71,17 @@ $level_id = $_SESSION['level_id'];
         <?php include 'includes/header.php'; ?>
 
         <div class="content-wrapper">
-          <div class="page-header">
-            <h3 class="page-title">Welcome, <?php echo htmlspecialchars($user_id); ?>!</h3>
-            <p>Your Role Level: <?php echo $level_id; ?></p>
+
+          <div class="hero-welcome shadow-sm">
+            <h2>Welcome back, <strong><?php echo htmlspecialchars($user_id); ?></strong></h2>
+            <p class="mb-0">You are logged in as <strong>Level <?php echo $level_id; ?></strong>.</p>
           </div>
 
           <div class="row">
-            <div class="col-12 grid-margin stretch-card">
-              <div class="card">
+            <div class="col-12">
+              <div class="card dashboard-card">
                 <div class="card-body">
-
+                  
                   <?php if ($level_id == 1): ?>
                     <h4 class="card-title">Developer Dashboard</h4>
                     <ul class="list-arrow">
@@ -105,7 +142,7 @@ $level_id = $_SESSION['level_id'];
                     </ul>
 
                   <?php else: ?>
-                    <p>Invalid role. Please contact admin.</p>
+                    <p class="text-danger">Invalid role. Please contact admin.</p>
                   <?php endif; ?>
 
                 </div>
@@ -114,9 +151,9 @@ $level_id = $_SESSION['level_id'];
           </div>
         </div>
 
+        <!-- Footer -->
         <?php include 'includes/footer.php'; ?>
       </div> <!-- main-panel -->
-
     </div> <!-- page-body-wrapper -->
   </div> <!-- container-scroller -->
 
