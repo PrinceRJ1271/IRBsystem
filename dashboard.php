@@ -22,15 +22,18 @@ $level_id = $_SESSION['level_id'];
 </head>
 <body>
   <div class="container-scroller">
+
     <!-- Sidebar -->
     <?php include 'includes/sidebar.php'; ?>
 
     <div class="container-fluid page-body-wrapper">
+      
       <!-- Header -->
       <?php include 'includes/header.php'; ?>
 
       <div class="main-panel">
         <div class="content-wrapper">
+
           <div class="page-header">
             <h3 class="page-title">Welcome, <?php echo htmlspecialchars($user_id); ?>!</h3>
             <p>Your Role Level: <?php echo $level_id; ?></p>
@@ -40,6 +43,7 @@ $level_id = $_SESSION['level_id'];
             <div class="col-12 grid-margin stretch-card">
               <div class="card">
                 <div class="card-body">
+                  
                   <?php if ($level_id == 1): ?>
                     <h4 class="card-title">Developer Dashboard</h4>
                     <ul class="list-arrow">
@@ -102,14 +106,16 @@ $level_id = $_SESSION['level_id'];
                   <?php else: ?>
                     <p>Invalid role. Please contact admin.</p>
                   <?php endif; ?>
+
                 </div>
               </div>
             </div>
           </div>
-        </div> <!-- content-wrapper -->
 
+        </div> <!-- content-wrapper -->
         <?php include 'includes/footer.php'; ?>
       </div> <!-- main-panel -->
+
     </div> <!-- page-body-wrapper -->
   </div> <!-- container-scroller -->
 
