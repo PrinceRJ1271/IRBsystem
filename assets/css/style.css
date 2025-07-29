@@ -21313,6 +21313,8 @@ html {
 
 .container-scroller {
   overflow: hidden;
+  margin-top: 0;
+  padding-top: 0;
 }
 
 pre {
@@ -28813,6 +28815,7 @@ dl li {
   box-shadow: none;
   background: #F4F5F7;
   /* Navbar color variations */
+  height: 70px;
 }
 .sidebar-dark .navbar {
   box-shadow: none;
@@ -30388,9 +30391,4 @@ dl li {
   flex-direction: row;
   width: 100%;
   min-height: 100vh;
-}
-
-body, html {
-  margin: 0 !important;
-  padding: 0 !important;
 }
