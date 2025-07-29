@@ -30381,3 +30381,11 @@ dl li {
   outline: 1px solid slategrey;
 }
 /*# sourceMappingURL=maps/style.css.map */
+
+/* Ensure sidebar and dashboard appear side by side */
+.page-body-wrapper.d-flex {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  min-height: 100vh;
+}
