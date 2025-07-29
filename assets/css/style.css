@@ -28443,7 +28443,6 @@ dl li {
   display: flex;
   flex-direction: column;
   flex-grow: 1; 
-  margin-top: 10px;
 }
 
 @media (max-width: 991px) {
