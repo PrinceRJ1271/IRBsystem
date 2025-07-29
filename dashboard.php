@@ -9,13 +9,24 @@ $user_id = $_SESSION['user_id'];
 $level_id = $_SESSION['level_id'];
 ?>
 
-<?php include 'includes/header.php'; ?>
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IRB Letter Management System</title>
+  <link rel="stylesheet" href="assets/vendors/mdi/css/materialdesignicons.min.css">
+  <link rel="stylesheet" href="assets/vendors/css/vendor.bundle.base.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="shortcut icon" href="assets/images/favicon.png" />
+</head>
 <body>
   <div class="container-scroller">
     <?php include 'includes/sidebar.php'; ?>
 
     <div class="container-fluid page-body-wrapper">
+      <?php include 'includes/header.php'; ?>
+
       <div class="main-panel">
         <div class="content-wrapper">
           <div class="page-header">
@@ -94,10 +105,13 @@ $level_id = $_SESSION['level_id'];
             </div>
           </div>
         </div>
-
         <?php include 'includes/footer.php'; ?>
-      </div>
-    </div>
-  </div>
+      </div> <!-- main-panel -->
+    </div> <!-- page-body-wrapper -->
+  </div> <!-- container-scroller -->
+
+  <script src="assets/vendors/js/vendor.bundle.base.js"></script>
+  <script src="assets/js/off-canvas.js"></script>
+  <script src="assets/js/misc.js"></script>
 </body>
 </html>
