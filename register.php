@@ -4,17 +4,18 @@ include 'config/db.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $user_id = $_POST['user_id'];
+    $username = $_POST['username'];  // ✅ Now added
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     $level_id = $_POST['level_id'];
 
-    $stmt = $conn->prepare("INSERT INTO users (user_id, password, level_id) VALUES (?, ?, ?)");
-    $stmt->bind_param("ssi", $user_id, $password, $level_id);
+    $stmt = $conn->prepare("INSERT INTO users (user_id, username, password, level_id) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("sssi", $user_id, $username, $password, $level_id);
 
     if ($stmt->execute()) {
         header("Location: login.php");
         exit();
     } else {
-        $error = "Registration failed. Try a different User ID.";
+        $error = "Registration failed. Try a different User ID or Username.";
     }
 }
 ?>
@@ -48,15 +49,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                     <input type="text" name="user_id" class="form-control form-control-lg" placeholder="User ID" required>
                                 </div>
                                 <div class="form-group">
+                                    <input type="text" name="username" class="form-control form-control-lg" placeholder="Username" required>
+                                </div>
+                                <div class="form-group">
                                     <input type="password" name="password" class="form-control form-control-lg" placeholder="Password" required>
                                 </div>
                                 <div class="form-group">
                                     <select name="level_id" class="form-control form-control-lg" required>
                                         <option value="">Select Role</option>
-                                        <option value="1">Admin</option>
-                                        <option value="2">Senior</option>
-                                        <option value="3">Manager</option>
-                                        <option value="4">Developer</option>
+                                        <option value="1">Developer</option>
+                                        <option value="2">Tax Manager</option>
+                                        <option value="3">Tax Senior</option>
+                                        <option value="4">Admin Staff</option>
                                     </select>
                                 </div>
                                 <div class="mt-3">
