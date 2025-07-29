@@ -28436,13 +28436,13 @@ dl li {
 
 .main-panel {
   transition: width 0.25s ease, margin 0.25s ease;
-  width: calc(100% - 220px);
+  width: calc(100% - 220px); /* Account for sidebar width */
   min-height: calc(100vh - 97px);
-  display: -webkit-flex;
   display: flex;
-  -webkit-flex-direction: column;
   flex-direction: column;
+  flex-grow: 1; 
 }
+
 @media (max-width: 991px) {
   .main-panel {
     margin-left: 0;
@@ -28472,6 +28472,7 @@ dl li {
   padding: 0;
   width: 220px;
   z-index: 11;
+  flex-shrink: 0;
   transition: width 0.25s ease, background 0.25s ease;
   -webkit-transition: width 0.25s ease, background 0.25s ease;
   -moz-transition: width 0.25s ease, background 0.25s ease;
