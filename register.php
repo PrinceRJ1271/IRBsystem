@@ -17,7 +17,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         header("Location: login.php");
         exit();
     } else {
-        if ($conn->errno === 1062) {
+        if ($stmt->errno === 1062) {
             $error = "⚠️ This User ID is already taken. Please choose another.";
         } else {
             $error = "❌ Registration failed due to a server error.";
