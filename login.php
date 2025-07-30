@@ -40,6 +40,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background: url('assets/images/auth/login-bg.jpg') no-repeat center center;
             background-size: cover;
         }
+        .password-toggle {
+            cursor: pointer;
+            position: absolute;
+            right: 15px;
+            top: 10px;
+        }
+        .position-relative {
+            position: relative;
+        }
     </style>
 </head>
 <body>
@@ -55,12 +64,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <div class="alert alert-danger"><?= $error ?></div>
                     <?php endif; ?>
 
-                    <form method="POST" class="pt-3">
+                    <form method="POST" class="pt-3 needs-validation" novalidate>
                         <div class="form-group">
-                            <input type="text" name="user_id" class="form-control form-control-lg" placeholder="User ID" required>
+                            <input type="text" name="user_id" class="form-control form-control-lg" placeholder="User ID"
+                                   aria-label="User ID" autocomplete="username" required>
+                            <div class="invalid-feedback">Please enter your User ID.</div>
                         </div>
-                        <div class="form-group">
-                            <input type="password" name="password" class="form-control form-control-lg" placeholder="Password" required>
+                        <div class="form-group position-relative">
+                            <input type="password" name="password" class="form-control form-control-lg" placeholder="Password"
+                                   aria-label="Password" autocomplete="current-password" required id="password">
+                            <i class="mdi mdi-eye-off password-toggle" id="togglePassword"></i>
+                            <div class="invalid-feedback">Please enter your password.</div>
                         </div>
                         <div class="mt-3">
                             <button type="submit" class="btn btn-primary btn-lg btn-block">LOGIN</button>
@@ -79,5 +93,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <script src="assets/js/off-canvas.js"></script>
 <script src="assets/js/hoverable-collapse.js"></script>
 <script src="assets/js/misc.js"></script>
+
+<script>
+    // Bootstrap validation
+    (function () {
+        'use strict'
+        const forms = document.querySelectorAll('.needs-validation');
+        Array.from(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        });
+    })();
+
+    // Toggle password visibility
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordField = document.getElementById('password');
+    togglePassword.addEventListener('click', function () {
+        const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordField.setAttribute('type', type);
+        this.classList.toggle('mdi-eye');
+        this.classList.toggle('mdi-eye-off');
+    });
+</script>
 </body>
 </html>

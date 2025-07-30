@@ -37,6 +37,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background: url('assets/images/auth/register-bg.jpg') no-repeat center center;
             background-size: cover;
         }
+        .position-relative {
+            position: relative;
+        }
+        .password-toggle {
+            cursor: pointer;
+            position: absolute;
+            right: 15px;
+            top: 10px;
+        }
+        #strengthMessage {
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+        }
     </style>
 </head>
 <body>
@@ -52,15 +65,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <div class="alert alert-danger mt-2"><?= $error ?></div>
                     <?php endif; ?>
 
-                    <form method="post" class="pt-3">
+                    <form method="post" class="pt-3 needs-validation" novalidate>
                         <div class="form-group">
-                            <input type="text" name="user_id" class="form-control form-control-lg" placeholder="User ID" required>
+                            <input type="text" name="user_id" class="form-control form-control-lg" placeholder="User ID"
+                                   aria-label="User ID" autocomplete="username" required>
+                            <div class="invalid-feedback">Please enter a User ID.</div>
                         </div>
                         <div class="form-group">
-                            <input type="text" name="username" class="form-control form-control-lg" placeholder="Username" required>
+                            <input type="text" name="username" class="form-control form-control-lg" placeholder="Username"
+                                   aria-label="Username" autocomplete="name" required>
+                            <div class="invalid-feedback">Please enter your full name.</div>
                         </div>
-                        <div class="form-group">
-                            <input type="password" name="password" class="form-control form-control-lg" placeholder="Password" required>
+                        <div class="form-group position-relative">
+                            <input type="password" name="password" id="password" class="form-control form-control-lg" 
+                                   placeholder="Password" aria-label="Password" autocomplete="new-password" required>
+                            <i class="mdi mdi-eye-off password-toggle" id="togglePassword"></i>
+                            <div class="invalid-feedback">Please enter a password.</div>
+                            <div id="strengthMessage" class="text-muted"></div>
                         </div>
                         <div class="form-group">
                             <select name="level_id" class="form-control form-control-lg" required>
@@ -70,6 +91,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <option value="3">Tax Senior</option>
                                 <option value="4">Admin Staff</option>
                             </select>
+                            <div class="invalid-feedback">Please select a role.</div>
                         </div>
                         <div class="mt-3">
                             <button type="submit" class="btn btn-primary btn-lg btn-block">REGISTER</button>
@@ -88,5 +110,50 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <script src="assets/js/off-canvas.js"></script>
 <script src="assets/js/hoverable-collapse.js"></script>
 <script src="assets/js/misc.js"></script>
+
+<script>
+    // Bootstrap validation
+    (() => {
+        'use strict';
+        const forms = document.querySelectorAll('.needs-validation');
+        Array.from(forms).forEach(form => {
+            form.addEventListener('submit', e => {
+                if (!form.checkValidity()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    })();
+
+    // Password toggle
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordField = document.getElementById('password');
+    togglePassword.addEventListener('click', function () {
+        const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordField.setAttribute('type', type);
+        this.classList.toggle('mdi-eye');
+        this.classList.toggle('mdi-eye-off');
+    });
+
+    // Password strength checker
+    passwordField.addEventListener('input', function () {
+        const value = passwordField.value;
+        const strengthMsg = document.getElementById('strengthMessage');
+        const strongRegex = new RegExp("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{8,}$");
+
+        if (strongRegex.test(value)) {
+            strengthMsg.textContent = "Strong password.";
+            strengthMsg.className = "text-success";
+        } else if (value.length >= 6) {
+            strengthMsg.textContent = "Medium strength. Try adding symbols or uppercase.";
+            strengthMsg.className = "text-warning";
+        } else {
+            strengthMsg.textContent = "Weak password. Use 8+ chars, symbols, and numbers.";
+            strengthMsg.className = "text-danger";
+        }
+    });
+</script>
 </body>
 </html>
