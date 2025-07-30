@@ -2,6 +2,8 @@
 session_start();
 include 'config/db.php';
 
+$error = "";
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $user_id = $_POST['user_id'];
     $username = $_POST['username'];
@@ -15,7 +17,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         header("Location: login.php");
         exit();
     } else {
-        $error = "Registration failed. Try a different User ID.";
+        if ($conn->errno === 1062) {
+            $error = "⚠️ This User ID is already taken. Please choose another.";
+        } else {
+            $error = "❌ Registration failed due to a server error.";
+        }
     }
 }
 ?>
@@ -106,6 +112,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     </div>
 </div>
+
 <script src="assets/vendors/js/vendor.bundle.base.js"></script>
 <script src="assets/js/off-canvas.js"></script>
 <script src="assets/js/hoverable-collapse.js"></script>
