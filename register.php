@@ -2,10 +2,13 @@
 session_start();
 include 'config/db.php';
 
-// Enable error logging for debugging during development
+// Enable detailed error messages for development
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
+// This forces mysqli to throw exceptions
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 $error = "";
 
@@ -15,28 +18,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     $level_id = $_POST['level_id'];
 
-    $stmt = $conn->prepare("INSERT INTO users (user_id, username, password, level_id) VALUES (?, ?, ?, ?)");
-
-    if (!$stmt) {
-        // Prepare failed
-        $error = "❌ Prepare failed: " . $conn->error;
-    } else {
+    try {
+        $stmt = $conn->prepare("INSERT INTO users (user_id, username, password, level_id) VALUES (?, ?, ?, ?)");
         $stmt->bind_param("sssi", $user_id, $username, $password, $level_id);
-        if ($stmt->execute()) {
-            header("Location: login.php");
-            exit();
+        $stmt->execute();
+        
+        header("Location: login.php");
+        exit();
+    } catch (mysqli_sql_exception $e) {
+        if (str_contains($e->getMessage(), 'Duplicate entry')) {
+            $error = "⚠️ This User ID is already taken. Please choose another.";
         } else {
-            if ($stmt->errno === 1062) {
-                $error = "⚠️ This User ID is already taken. Please choose another.";
-            } else {
-                $error = "❌ Registration failed: " . $stmt->error;
-            }
+            $error = "❌ Registration failed. Please try again later.";
         }
     }
 }
 ?>
 
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
