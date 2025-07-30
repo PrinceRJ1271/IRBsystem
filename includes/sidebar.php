@@ -31,7 +31,7 @@ $level_id = $_SESSION['level_id'] ?? null;
 
     <!-- Common Links for All Users -->
     <li class="nav-item">
-      <a class="nav-link" href="dashboard.php">
+      <a class="nav-link" href="/dashboard.php">
         <i class="mdi mdi-view-dashboard menu-icon"></i>
         <span class="menu-title">Dashboard</span>
       </a>
@@ -62,19 +62,19 @@ $level_id = $_SESSION['level_id'] ?? null;
     <!-- Developer & Manager -->
     <?php if ($level_id == 1 || $level_id == 2): ?>
       <li class="nav-item">
-        <a class="nav-link" href="forms/client_form.php">
+        <a class="nav-link" href="/forms/client_form.php">
           <i class="mdi mdi-account-plus menu-icon"></i>
           <span class="menu-title">Register Client</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="forms/irb_branch_form.php">
+        <a class="nav-link" href="/forms/irb_branch_form.php">
           <i class="mdi mdi-city menu-icon"></i>
           <span class="menu-title">Add IRB Branch</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="forms/letter_type_form.php">
+        <a class="nav-link" href="/forms/letter_type_form.php">
           <i class="mdi mdi-note-plus menu-icon"></i>
           <span class="menu-title">Add Letter Type</span>
         </a>
@@ -84,25 +84,25 @@ $level_id = $_SESSION['level_id'] ?? null;
     <!-- Received/Sent Letters (Level 1,2,3) -->
     <?php if (in_array($level_id, [1, 2, 3])): ?>
       <li class="nav-item">
-        <a class="nav-link" href="forms/letter_received_form.php">
+        <a class="nav-link" href="/forms/letter_received_form.php">
           <i class="mdi mdi-inbox-arrow-down menu-icon"></i>
           <span class="menu-title">Letter Received</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="forms/letter_received_followup_form.php">
+        <a class="nav-link" href="/forms/letter_received_followup_form.php">
           <i class="mdi mdi-refresh menu-icon"></i>
           <span class="menu-title">Follow-up (Received)</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="forms/letter_sent_form.php">
+        <a class="nav-link" href="/forms/letter_sent_form.php">
           <i class="mdi mdi-send menu-icon"></i>
           <span class="menu-title">Letter Sent</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="forms/letter_sent_followup_form.php">
+        <a class="nav-link" href="/forms/letter_sent_followup_form.php">
           <i class="mdi mdi-reload menu-icon"></i>
           <span class="menu-title">Follow-up (Sent)</span>
         </a>
@@ -112,7 +112,7 @@ $level_id = $_SESSION['level_id'] ?? null;
     <!-- Admin Staff -->
     <?php if ($level_id == 1 || $level_id == 2 || $level_id == 4): ?>
       <li class="nav-item">
-        <a class="nav-link" href="forms/letter_delivery_form.php">
+        <a class="nav-link" href="/forms/letter_delivery_form.php">
           <i class="mdi mdi-truck-delivery menu-icon"></i>
           <span class="menu-title">Letter Delivery</span>
         </a>
@@ -121,19 +121,19 @@ $level_id = $_SESSION['level_id'] ?? null;
 
     <!-- Common Search & Export -->
     <li class="nav-item">
-      <a class="nav-link" href="search/quick_search.php">
+      <a class="nav-link" href="/search/quick_search.php">
         <i class="mdi mdi-magnify menu-icon"></i>
         <span class="menu-title">Quick Search</span>
       </a>
     </li>
     <li class="nav-item">
-      <a class="nav-link" href="export/export_letters_pdf.php" target="_blank">
+      <a class="nav-link" href="/export/export_letters_pdf.php" target="_blank">
         <i class="mdi mdi-file-pdf menu-icon"></i>
         <span class="menu-title">Export PDF</span>
       </a>
     </li>
     <li class="nav-item">
-      <a class="nav-link" href="export/export_letters_excel.php" target="_blank">
+      <a class="nav-link" href="/export/export_letters_excel.php" target="_blank">
         <i class="mdi mdi-file-excel menu-icon"></i>
         <span class="menu-title">Export Excel</span>
       </a>
@@ -141,7 +141,7 @@ $level_id = $_SESSION['level_id'] ?? null;
 
     <!-- Logout -->
     <li class="nav-item">
-      <a class="nav-link" href="logout.php">
+      <a class="nav-link" href="/logout.php">
         <i class="mdi mdi-logout menu-icon"></i>
         <span class="menu-title">Logout</span>
       </a>
