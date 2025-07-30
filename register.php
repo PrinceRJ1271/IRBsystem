@@ -2,6 +2,11 @@
 session_start();
 include 'config/db.php';
 
+// Enable error logging for debugging during development
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -11,19 +16,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $level_id = $_POST['level_id'];
 
     $stmt = $conn->prepare("INSERT INTO users (user_id, username, password, level_id) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("sssi", $user_id, $username, $password, $level_id);
 
-    if ($stmt->execute()) {
-        header("Location: login.php");
-        exit();
+    if (!$stmt) {
+        // Prepare failed
+        $error = "❌ Prepare failed: " . $conn->error;
     } else {
-        if ($stmt->errno === 1062) {
-            $error = "⚠️ This User ID is already taken. Please choose another.";
+        $stmt->bind_param("sssi", $user_id, $username, $password, $level_id);
+        if ($stmt->execute()) {
+            header("Location: login.php");
+            exit();
         } else {
-            $error = "❌ Registration failed due to a server error.";
+            if ($stmt->errno === 1062) {
+                $error = "⚠️ This User ID is already taken. Please choose another.";
+            } else {
+                $error = "❌ Registration failed: " . $stmt->error;
+            }
         }
     }
 }
+?>
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
