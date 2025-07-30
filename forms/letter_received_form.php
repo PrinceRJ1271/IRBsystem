@@ -28,27 +28,96 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     );
 
     if ($stmt->execute()) {
-        echo "Letter received successfully!";
+        echo "<div class='alert alert-success'>Letter received successfully!</div>";
     } else {
-        echo "Error: " . $stmt->error;
+        echo "<div class='alert alert-danger'>Error: " . $stmt->error . "</div>";
     }
 }
 ?>
 
-<h3>IRB Letter Received Form</h3>
-<form method="post">
-  <input name="client_id" placeholder="Client ID" required><br>
-  <input name="branch_id" placeholder="IRB Branch ID" required><br>
-  <input name="letter_type_id" placeholder="Letter Type ID" required><br>
-  <label>Date Received: <input type="date" name="received_date" required></label><br>
-  <label>Scanned Copy Required: <input type="checkbox" name="scanned_copy_required" value="1"></label><br>
-  <label>Email to Client Required: <input type="checkbox" name="email_to_client_required" value="1"></label><br>
-  <label>Filed: <input type="checkbox" name="filed" value="1"></label><br>
-  <input name="sic_id" placeholder="SIC ID" required><br>
-  <input name="sic_signature" placeholder="SIC Signature"><br>
-  <input name="mic_id" placeholder="MIC ID"><br>
-  <input name="mic_signature" placeholder="MIC Signature"><br>
-  <label>Follow-up Required: <input type="checkbox" name="follow_up_required" value="1"></label><br>
-  <textarea name="remark" placeholder="Remarks"></textarea><br>
-  <button type="submit">Submit</button>
-</form>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IRB Letter Received Form</title>
+  <link rel="stylesheet" href="../assets/vendors/mdi/css/materialdesignicons.min.css">
+  <link rel="stylesheet" href="../assets/vendors/css/vendor.bundle.base.css">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="shortcut icon" href="../assets/images/favicon.png" />
+</head>
+<body>
+  <div class="container mt-5">
+    <div class="card shadow-lg">
+      <div class="card-header bg-primary text-white">
+        <h4 class="mb-0">IRB Letter Received Form</h4>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Client ID</label>
+              <input type="text" name="client_id" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">IRB Branch ID</label>
+              <input type="text" name="branch_id" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Letter Type ID</label>
+              <input type="text" name="letter_type_id" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Date Received</label>
+              <input type="date" name="received_date" class="form-control" required>
+            </div>
+            <div class="col-md-4 form-check">
+              <input class="form-check-input" type="checkbox" name="scanned_copy_required" value="1" id="scannedCopy">
+              <label class="form-check-label" for="scannedCopy">Scanned Copy Required</label>
+            </div>
+            <div class="col-md-4 form-check">
+              <input class="form-check-input" type="checkbox" name="email_to_client_required" value="1" id="emailToClient">
+              <label class="form-check-label" for="emailToClient">Email to Client Required</label>
+            </div>
+            <div class="col-md-4 form-check">
+              <input class="form-check-input" type="checkbox" name="filed" value="1" id="filed">
+              <label class="form-check-label" for="filed">Filed</label>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">SIC ID</label>
+              <input type="text" name="sic_id" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">SIC Signature</label>
+              <input type="text" name="sic_signature" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">MIC ID</label>
+              <input type="text" name="mic_id" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">MIC Signature</label>
+              <input type="text" name="mic_signature" class="form-control">
+            </div>
+            <div class="col-md-12 form-check">
+              <input class="form-check-input" type="checkbox" name="follow_up_required" value="1" id="followUp">
+              <label class="form-check-label" for="followUp">Follow-up Required</label>
+            </div>
+            <div class="col-md-12">
+              <label class="form-label">Remarks</label>
+              <textarea name="remark" class="form-control" rows="3"></textarea>
+            </div>
+          </div>
+          <div class="text-end mt-4">
+            <button type="submit" class="btn btn-success">Submit Form</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/vendors/js/vendor.bundle.base.js"></script>
+  <script src="../assets/js/off-canvas.js"></script>
+  <script src="../assets/js/hoverable-collapse.js"></script>
+  <script src="../assets/js/misc.js"></script>
+</body>
+</html>
