@@ -44,14 +44,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </head>
 <body>
   <div class="container-scroller">
-
-    <?php include '../includes/sidebar.php'; ?>
-
     <div class="container-fluid page-body-wrapper">
 
-      <?php include '../includes/header.php'; ?>
+      <?php include '../includes/sidebar.php'; ?>
 
       <div class="main-panel">
+        <?php include '../includes/header.php'; ?>
+
         <div class="content-wrapper">
           <div class="row justify-content-center">
             <div class="col-md-8 grid-margin stretch-card">
