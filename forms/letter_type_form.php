@@ -23,26 +23,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
   <meta charset="UTF-8">
   <title>Add Letter Type - IRB System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="../assets/vendors/mdi/css/materialdesignicons.min.css">
   <link rel="stylesheet" href="../assets/vendors/css/vendor.bundle.base.css">
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="shortcut icon" href="../assets/images/favicon.png" />
+  <style>
+    .page-title {
+      font-weight: 600;
+      color: #4B49AC;
+    }
+    .card {
+      border-radius: 1rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .form-group label {
+      font-weight: 500;
+    }
+  </style>
 </head>
 <body>
   <div class="container-scroller">
+
     <?php include '../includes/sidebar.php'; ?>
 
     <div class="container-fluid page-body-wrapper">
+
       <?php include '../includes/header.php'; ?>
 
       <div class="main-panel">
         <div class="content-wrapper">
           <div class="row justify-content-center">
             <div class="col-md-8 grid-margin stretch-card">
-              <div class="card shadow">
+              <div class="card">
                 <div class="card-body">
-                  <h4 class="card-title text-primary">Add Letter Type</h4>
-                  <p class="card-description"> Use this form to create a new letter type record. </p>
+                  <h4 class="page-title">Add Letter Type</h4>
+                  <p class="card-description"> Use this form to create a new letter type </p>
 
                   <?php if (!empty($success)): ?>
                     <div class="alert alert-success"><?= $success ?></div>
@@ -70,7 +86,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                       </button>
                     </div>
                   </form>
-
                 </div>
               </div>
             </div>
@@ -84,7 +99,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
   <script src="../assets/vendors/js/vendor.bundle.base.js"></script>
   <script src="../assets/js/off-canvas.js"></script>
-  <script src="../assets/js/hoverable-collapse.js"></script>
   <script src="../assets/js/misc.js"></script>
 </body>
 </html>
