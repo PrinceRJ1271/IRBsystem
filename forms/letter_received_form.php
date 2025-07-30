@@ -40,6 +40,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
   <meta charset="UTF-8">
   <title>IRB Letter Received Form</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="../assets/vendors/mdi/css/materialdesignicons.min.css">
   <link rel="stylesheet" href="../assets/vendors/css/vendor.bundle.base.css">
   <link rel="stylesheet" href="../assets/css/style.css">
@@ -70,18 +71,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
               <label class="form-label">Date Received</label>
               <input type="date" name="received_date" class="form-control" required>
             </div>
-            <div class="col-md-4 form-check">
-              <input class="form-check-input" type="checkbox" name="scanned_copy_required" value="1" id="scannedCopy">
-              <label class="form-check-label" for="scannedCopy">Scanned Copy Required</label>
+          </div>
+
+          <!-- Checkbox group properly aligned -->
+          <div class="row g-3 ps-2 pt-3">
+            <div class="col-md-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="scanned_copy_required" value="1" id="scannedCopy">
+                <label class="form-check-label" for="scannedCopy">Scanned Copy Required</label>
+              </div>
             </div>
-            <div class="col-md-4 form-check">
-              <input class="form-check-input" type="checkbox" name="email_to_client_required" value="1" id="emailToClient">
-              <label class="form-check-label" for="emailToClient">Email to Client Required</label>
+            <div class="col-md-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="email_to_client_required" value="1" id="emailToClient">
+                <label class="form-check-label" for="emailToClient">Email to Client Required</label>
+              </div>
             </div>
-            <div class="col-md-4 form-check">
-              <input class="form-check-input" type="checkbox" name="filed" value="1" id="filed">
-              <label class="form-check-label" for="filed">Filed</label>
+            <div class="col-md-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="filed" value="1" id="filed">
+                <label class="form-check-label" for="filed">Filed</label>
+              </div>
             </div>
+          </div>
+
+          <div class="row g-3 pt-3">
             <div class="col-md-6">
               <label class="form-label">SIC ID</label>
               <input type="text" name="sic_id" class="form-control" required>
@@ -98,15 +112,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
               <label class="form-label">MIC Signature</label>
               <input type="text" name="mic_signature" class="form-control">
             </div>
-            <div class="col-md-12 form-check">
-              <input class="form-check-input" type="checkbox" name="follow_up_required" value="1" id="followUp">
-              <label class="form-check-label" for="followUp">Follow-up Required</label>
+          </div>
+
+          <!-- Follow-up checkbox in its own row -->
+          <div class="row g-3 ps-2 pt-3">
+            <div class="col-md-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="follow_up_required" value="1" id="followUp">
+                <label class="form-check-label" for="followUp">Follow-up Required</label>
+              </div>
             </div>
+          </div>
+
+          <div class="row g-3 pt-3">
             <div class="col-md-12">
               <label class="form-label">Remarks</label>
               <textarea name="remark" class="form-control" rows="3"></textarea>
             </div>
           </div>
+
           <div class="text-end mt-4">
             <button type="submit" class="btn btn-success">Submit Form</button>
           </div>
