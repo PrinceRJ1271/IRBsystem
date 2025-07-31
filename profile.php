@@ -6,22 +6,22 @@ $user_id = $_SESSION['user_id'];
 $error = '';
 $success = '';
 
-// Fetch user data
+// Fetch current user data
 $stmt = $conn->prepare("SELECT username, user_email, user_phonenumber, profile_pic FROM users WHERE user_id = ?");
 $stmt->bind_param("s", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 
-// Set fallback profile picture if none is stored
-$display_pic = !empty($user['profile_pic']) ? htmlspecialchars($user['profile_pic']) : 'assets/images/uploads/default.png';
+// Set default profile pic if not available
+$display_pic = (!empty($user['profile_pic']) && file_exists($user['profile_pic'])) ? $user['profile_pic'] : 'assets/images/default.png';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $email = $_POST['user_email'];
-    $phone = $_POST['user_phonenumber'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = trim($_POST['user_email']);
+    $phone = trim($_POST['user_phonenumber']);
     $target_file = $user['profile_pic'];
 
-    // File upload validation
+    // Handle profile picture upload if present
     if (!empty($_FILES['profile_pic']['name'])) {
         $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
         $max_file_size = 5 * 1024 * 1024; // 5MB
@@ -42,18 +42,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    if (!$error) {
+    // Update profile only if no error
+    if (empty($error)) {
         $update = $conn->prepare("UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ? WHERE user_id = ?");
         $update->bind_param("ssss", $email, $phone, $target_file, $user_id);
+
         if ($update->execute()) {
             $_SESSION['profile_pic'] = $target_file;
             $success = "✅ Profile updated successfully.";
+
+            // Refresh displayed values
             $user['user_email'] = $email;
             $user['user_phonenumber'] = $phone;
             $user['profile_pic'] = $target_file;
-            $display_pic = $target_file; // update for display
+            $display_pic = $target_file;
         } else {
-            $error = "❌ Update failed.";
+            $error = "❌ Update failed. Please try again.";
         }
     }
 }
@@ -94,18 +98,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     <form method="post" enctype="multipart/form-data">
                         <div class="text-center mb-4">
-                            <img src="<?= $display_pic ?>" class="profile-img mb-2" alt="Profile Picture">
+                            <img src="<?= htmlspecialchars($display_pic) ?>" class="profile-img mb-2" alt="Profile Picture">
                             <h5 class="text-primary mt-2"><?= htmlspecialchars($user['username']) ?></h5>
                         </div>
 
                         <div class="form-group">
                             <label>Email address</label>
-                            <input type="email" name="user_email" class="form-control" value="<?= htmlspecialchars($user['user_email']) ?>" placeholder="Enter email">
+                            <input type="email" name="user_email" class="form-control"
+                                   value="<?= htmlspecialchars($user['user_email']) ?>" placeholder="Enter email">
                         </div>
 
                         <div class="form-group">
                             <label>Phone Number</label>
-                            <input type="text" name="user_phonenumber" class="form-control" value="<?= htmlspecialchars($user['user_phonenumber']) ?>" placeholder="Enter phone number">
+                            <input type="text" name="user_phonenumber" class="form-control"
+                                   value="<?= htmlspecialchars($user['user_phonenumber']) ?>" placeholder="Enter phone number">
                         </div>
 
                         <div class="form-group">
