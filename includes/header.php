@@ -35,31 +35,69 @@ if (!isset($_SESSION)) session_start();
   .logout-link i {
     margin-right: 4px;
   }
+
+  .company-logo {
+    height: 40px;
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+
+  @media (max-width: 767.98px) {
+    .navbar-menu-wrapper {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      padding: 0.5rem 1rem;
+    }
+
+    .navbar-nav {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 0.5rem;
+    }
+
+    .logout-link {
+      margin-left: 0 !important;
+    }
+
+    .nav-profile-img img {
+      width: 50px;
+      height: 50px;
+    }
+
+    .company-logo {
+      height: 30px;
+      margin-left: 0.5rem;
+    }
+  }
 </style>
 
 <nav class="navbar p-0 fixed-top d-flex flex-row">
-  <div class="navbar-brand-wrapper d-flex d-lg-none align-items-center justify-content-center">
-    <a class="navbar-brand brand-logo-mini" href="/dashboard.php">
-      <img src="/assets/images/logo-mini.svg" alt="logo" />
+  <div class="navbar-brand-wrapper d-flex align-items-center justify-content-start px-3">
+    <!-- Company Logo -->
+    <a href="/dashboard.php" class="d-flex align-items-center">
+      <img src="/assets/images/KPMG-logo.png" alt="Company Logo" class="company-logo" />
     </a>
+    <!-- Sidebar toggle (optional for mobile) -->
+    <button class="navbar-toggler d-lg-none border-0" type="button" data-toggle="minimize">
+      <span class="mdi mdi-menu text-primary"></span>
+    </button>
   </div>
 
-  <div class="navbar-menu-wrapper flex-grow d-flex align-items-stretch justify-content-between">
+  <div class="navbar-menu-wrapper flex-grow d-flex flex-column flex-lg-row align-items-stretch justify-content-between">
     <!-- Search Bar -->
-    <form class="d-none d-md-flex input-group w-50 mx-3" action="/search/quick_search.php" method="get">
+    <form class="d-none d-md-flex input-group w-100 w-lg-50 mx-lg-3 mt-2 mt-lg-0" action="/search/quick_search.php" method="get">
       <input type="text" name="q" class="form-control" placeholder="Search ID, Client, Branch" />
       <button class="btn btn-sm btn-outline-primary" type="submit">Search</button>
     </form>
 
-    <ul class="navbar-nav d-flex align-items-center">
-
+    <ul class="navbar-nav d-flex flex-column flex-lg-row align-items-start align-items-lg-center px-3 px-lg-0 gap-2 gap-lg-0 mt-2 mt-lg-0">
       <!-- Clock -->
-      <li class="nav-item clock" id="liveClock">
+      <li class="nav-item clock me-lg-3" id="liveClock">
         <i class="mdi mdi-clock-outline me-1"></i> --
       </li>
 
       <!-- Profile Link -->
-      <li class="nav-item d-flex align-items-center me-3">
+      <li class="nav-item d-flex align-items-center me-lg-3">
         <a class="d-flex align-items-center text-decoration-none" href="/profile.php" title="View Profile">
           <div class="nav-profile-img me-2">
             <img src="<?= '/' . htmlspecialchars($_SESSION['profile_pic'] ?? 'assets/images/uploads/default.png') ?>" alt="profile" />
@@ -76,7 +114,6 @@ if (!isset($_SESSION)) session_start();
           <i class="mdi mdi-logout"></i> Logout
         </a>
       </li>
-
     </ul>
   </div>
 </nav>
