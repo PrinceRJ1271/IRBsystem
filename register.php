@@ -7,27 +7,26 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// This forces mysqli to throw exceptions
+// Force MySQLi to throw exceptions
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $user_id = $_POST['user_id'];
     $username = $_POST['username'];
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     $level_id = $_POST['level_id'];
 
     try {
-        $stmt = $conn->prepare("INSERT INTO users (user_id, username, password, level_id) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("sssi", $user_id, $username, $password, $level_id);
+        $stmt = $conn->prepare("INSERT INTO users (username, password, level_id) VALUES (?, ?, ?)");
+        $stmt->bind_param("ssi", $username, $password, $level_id);
         $stmt->execute();
-        
+
         header("Location: login.php");
         exit();
     } catch (mysqli_sql_exception $e) {
         if (str_contains($e->getMessage(), 'Duplicate entry')) {
-            $error = "⚠️ This User ID is already taken. Please choose another.";
+            $error = "⚠️ This username is already taken. Please choose another.";
         } else {
             $error = "❌ Registration failed. Please try again later.";
         }
@@ -83,14 +82,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                     <form method="post" class="pt-3 needs-validation" novalidate>
                         <div class="form-group">
-                            <input type="text" name="user_id" class="form-control form-control-lg" placeholder="User ID"
-                                   aria-label="User ID" autocomplete="username" required>
-                            <div class="invalid-feedback">Please enter a User ID.</div>
-                        </div>
-                        <div class="form-group">
                             <input type="text" name="username" class="form-control form-control-lg" placeholder="Username"
-                                   aria-label="Username" autocomplete="name" required>
-                            <div class="invalid-feedback">Please enter your full name.</div>
+                                   aria-label="Username" autocomplete="username" required>
+                            <div class="invalid-feedback">Please enter your username.</div>
                         </div>
                         <div class="form-group position-relative">
                             <input type="password" name="password" id="password" class="form-control form-control-lg" 

@@ -3,17 +3,17 @@ session_start();
 include 'config/db.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $user_id = $_POST['user_id'];
+    $username = $_POST['username'];
     $password = $_POST['password'];
 
-    $stmt = $conn->prepare("SELECT * FROM users WHERE user_id = ?");
-    $stmt->bind_param("s", $user_id);
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ?");
+    $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
     $user = $result->fetch_assoc();
 
     if ($user && password_verify($password, $user['password'])) {
-        $_SESSION['user_id'] = $user['user_id'];
+        $_SESSION['username'] = $user['username'];
         $_SESSION['level_id'] = $user['level_id'];
         header("Location: dashboard.php");
         exit();
@@ -66,9 +66,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                     <form method="POST" class="pt-3 needs-validation" novalidate>
                         <div class="form-group">
-                            <input type="text" name="user_id" class="form-control form-control-lg" placeholder="User ID"
-                                   aria-label="User ID" autocomplete="username" required>
-                            <div class="invalid-feedback">Please enter your User ID.</div>
+                            <input type="text" name="username" class="form-control form-control-lg" placeholder="Username"
+                                   aria-label="Username" autocomplete="username" required>
+                            <div class="invalid-feedback">Please enter your Username.</div>
                         </div>
                         <div class="form-group position-relative">
                             <input type="password" name="password" class="form-control form-control-lg" placeholder="Password"
