@@ -42,6 +42,11 @@ if (!isset($_SESSION)) session_start();
     margin-right: 1rem;
   }
 
+  .search-form {
+    max-width: 400px;
+    width: 100%;
+  }
+
   @media (max-width: 767.98px) {
     .navbar-menu-wrapper {
       flex-direction: column !important;
@@ -74,14 +79,14 @@ if (!isset($_SESSION)) session_start();
       font-size: 13px;
     }
 
-    .navbar {
-      height: 400px !important; /* Adjust as needed: 80px–100px is typical */
-      align-items: center;
+    .search-form {
+      max-width: 100%;
+      margin-top: 0.5rem;
     }
   }
 </style>
 
-<nav class="navbar p-0 fixed-top d-flex align-items-center justify-content-between px-3" style="background-color: #fff;">
+<nav class="navbar p-0 fixed-top d-flex align-items-center justify-content-between px-3" style="background-color: #fff; height: 80px;">
   <!-- Left Section: Logo and Search -->
   <div class="d-flex align-items-center flex-grow-1">
     <!-- Company Logo -->
@@ -90,8 +95,8 @@ if (!isset($_SESSION)) session_start();
     </a>
 
     <!-- Search Bar -->
-    <form class="d-none d-md-flex input-group w-100 w-lg-50" action="/search/quick_search.php" method="get">
-      <input type="text" name="q" class="form-control" placeholder="Search ID, Client, Branch" />
+    <form class="d-none d-md-flex input-group search-form" action="/search/quick_search.php" method="get">
+      <input type="text" name="q" class="form-control form-control-sm" placeholder="Search ID, Client, Branch" />
       <button class="btn btn-sm btn-outline-primary" type="submit">Search</button>
     </form>
   </div>
