@@ -2,11 +2,16 @@
 session_start();
 include 'config/db.php';
 
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
 $user_id = $_SESSION['user_id'];
 $error = '';
 $success = '';
 
-// Fetch current user data function
+// Fetch user data from DB
 function getUserData($conn, $user_id) {
     $stmt = $conn->prepare("SELECT username, user_email, user_phonenumber, profile_pic FROM users WHERE user_id = ?");
     $stmt->bind_param("s", $user_id);
@@ -14,27 +19,23 @@ function getUserData($conn, $user_id) {
     return $stmt->get_result()->fetch_assoc();
 }
 
-// Initial fetch
 $user = getUserData($conn, $user_id);
-
-// Determine profile picture to display
 $profile_path = $user['profile_pic'];
-$display_pic = (file_exists($profile_path) && !empty($profile_path)) ? $profile_path : 'assets/images/uploads/default.png';
+$display_pic = (!empty($profile_path) && file_exists($profile_path)) ? $profile_path : 'assets/images/uploads/default.png';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['user_email']);
     $phone = trim($_POST['user_phonenumber']);
     $target_file = $user['profile_pic'];
 
-    // Handle profile picture upload
     if (!empty($_FILES['profile_pic']['name'])) {
         $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-        $max_file_size = 5 * 1024 * 1024; // 5MB
+        $max_file_size = 5 * 1024 * 1024;
         $file_type = $_FILES['profile_pic']['type'];
         $file_size = $_FILES['profile_pic']['size'];
         $tmp_name = $_FILES['profile_pic']['tmp_name'];
-        $filename = basename($_FILES['profile_pic']['name']);
-        $upload_path = "assets/images/uploads/" . time() . "_" . $filename;
+        $filename = time() . "_" . basename($_FILES['profile_pic']['name']);
+        $upload_path = "assets/images/uploads/" . $filename;
 
         if (!in_array($file_type, $allowed_types)) {
             $error = "❌ Only JPG, PNG, or GIF images are allowed.";
@@ -43,21 +44,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!move_uploaded_file($tmp_name, $upload_path)) {
             $error = "❌ Failed to upload image.";
         } else {
+            // Optional: Delete old image (skip if it's default)
+            // if (!str_contains($target_file, 'default.png') && file_exists($target_file)) {
+            //     unlink($target_file);
+            // }
+
             $target_file = $upload_path;
         }
     }
 
-    // Update only if no error
     if (empty($error)) {
-        $update = $conn->prepare("UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ? WHERE user_id = ?");
-        $update->bind_param("ssss", $email, $phone, $target_file, $user_id);
+        $stmt = $conn->prepare("UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ? WHERE user_id = ?");
+        $stmt->bind_param("ssss", $email, $phone, $target_file, $user_id);
 
-        if ($update->execute()) {
+        if ($stmt->execute()) {
             $_SESSION['profile_pic'] = $target_file;
             $success = "✅ Profile updated successfully.";
-            // RE-FETCH the updated user data
             $user = getUserData($conn, $user_id);
-            $display_pic = $user['profile_pic'];
+            $display_pic = (!empty($user['profile_pic']) && file_exists($user['profile_pic'])) ? $user['profile_pic'] : 'assets/images/uploads/default.png';
         } else {
             $error = "❌ Update failed. Please try again.";
         }
@@ -106,13 +110,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         <div class="form-group">
                             <label>Email address</label>
-                            <input type="email" name="user_email" class="form-control"
+                            <input type="email" name="user_email" class="form-control" required
                                    value="<?= htmlspecialchars($user['user_email']) ?>" placeholder="Enter email">
                         </div>
 
                         <div class="form-group">
                             <label>Phone Number</label>
-                            <input type="text" name="user_phonenumber" class="form-control"
+                            <input type="text" name="user_phonenumber" class="form-control" required
                                    value="<?= htmlspecialchars($user['user_phonenumber']) ?>" placeholder="Enter phone number">
                         </div>
 
@@ -138,8 +142,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script src="assets/js/off-canvas.js"></script>
 <script src="assets/js/hoverable-collapse.js"></script>
 <script src="assets/js/misc.js"></script>
-
-<!-- Live preview script -->
 <script>
     function previewImage(event) {
         const preview = document.getElementById('previewImage');
