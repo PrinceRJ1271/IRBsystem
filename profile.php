@@ -44,11 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!move_uploaded_file($tmp_name, $upload_path)) {
             $error = "❌ Failed to upload image.";
         } else {
-            // Optional: Delete old image (skip if it's default)
-            // if (!str_contains($target_file, 'default.png') && file_exists($target_file)) {
-            //     unlink($target_file);
-            // }
-
             $target_file = $upload_path;
         }
     }
@@ -77,6 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="assets/vendors/mdi/css/materialdesignicons.min.css">
     <link rel="stylesheet" href="assets/vendors/css/vendor.bundle.base.css">
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="shortcut icon" href="assets/images/favicon.png" />
     <style>
         .profile-img {
             width: 120px;
@@ -85,55 +81,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-radius: 50%;
             border: 4px solid #f3f6f9;
         }
+        .page-title {
+            font-weight: 600;
+            color: #4B49AC;
+        }
+        .card {
+            border-radius: 1rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .form-group label {
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 grid-margin stretch-card">
-            <div class="card">
-                <div class="card-body">
-                    <h4 class="card-title mb-4">My Profile</h4>
+<div class="container-scroller">
+    <div class="container-fluid page-body-wrapper">
 
-                    <?php if ($error): ?>
-                        <div class="alert alert-danger"><?= $error ?></div>
-                    <?php endif; ?>
-                    <?php if ($success): ?>
-                        <div class="alert alert-success"><?= $success ?></div>
-                    <?php endif; ?>
+        <!-- Sidebar -->
+        <?php include 'includes/sidebar.php'; ?>
 
-                    <form method="post" enctype="multipart/form-data">
-                        <div class="text-center mb-4">
-                            <img id="previewImage" src="<?= htmlspecialchars($display_pic) ?>" class="profile-img mb-2" alt="Profile Picture">
-                            <h5 class="text-primary mt-2"><?= htmlspecialchars($user['username']) ?></h5>
+        <div class="main-panel">
+            <!-- Header -->
+            <?php include 'includes/header.php'; ?>
+
+            <div class="content-wrapper">
+                <div class="row justify-content-center">
+                    <div class="col-md-10 grid-margin stretch-card">
+                        <div class="card">
+                            <div class="card-body">
+                                <h4 class="page-title">My Profile</h4>
+                                <p class="card-description"> View or update your details below </p>
+
+                                <?php if ($error): ?>
+                                    <div class="alert alert-danger"><?= $error ?></div>
+                                <?php endif; ?>
+                                <?php if ($success): ?>
+                                    <div class="alert alert-success"><?= $success ?></div>
+                                <?php endif; ?>
+
+                                <form method="post" enctype="multipart/form-data">
+                                    <div class="text-center mb-4">
+                                        <img id="previewImage" src="<?= htmlspecialchars($display_pic) ?>" class="profile-img mb-2" alt="Profile Picture">
+                                        <h5 class="text-primary mt-2"><?= htmlspecialchars($user['username']) ?></h5>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Email address</label>
+                                        <input type="email" name="user_email" class="form-control" required
+                                            value="<?= htmlspecialchars($user['user_email']) ?>" placeholder="Enter email">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Phone Number</label>
+                                        <input type="text" name="user_phonenumber" class="form-control" required
+                                            value="<?= htmlspecialchars($user['user_phonenumber']) ?>" placeholder="Enter phone number">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Upload New Profile Picture</label>
+                                        <input type="file" name="profile_pic" class="form-control" accept=".jpg,.jpeg,.png,.gif"
+                                            onchange="previewImage(event)">
+                                        <small class="text-muted">Max size: 5MB | Types: JPG, PNG, GIF</small>
+                                    </div>
+
+                                    <div class="mt-4 text-center">
+                                        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+                                        <a href="dashboard.php" class="btn btn-light btn-sm">Back to Dashboard</a>
+                                    </div>
+                                </form>
+
+                            </div>
                         </div>
-
-                        <div class="form-group">
-                            <label>Email address</label>
-                            <input type="email" name="user_email" class="form-control" required
-                                   value="<?= htmlspecialchars($user['user_email']) ?>" placeholder="Enter email">
-                        </div>
-
-                        <div class="form-group">
-                            <label>Phone Number</label>
-                            <input type="text" name="user_phonenumber" class="form-control" required
-                                   value="<?= htmlspecialchars($user['user_phonenumber']) ?>" placeholder="Enter phone number">
-                        </div>
-
-                        <div class="form-group">
-                            <label>Upload New Profile Picture</label>
-                            <input type="file" name="profile_pic" class="form-control" accept=".jpg,.jpeg,.png,.gif"
-                                   onchange="previewImage(event)">
-                            <small class="text-muted">Max size: 5MB | Types: JPG, PNG, GIF</small>
-                        </div>
-
-                        <div class="mt-4">
-                            <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
-                            <a href="dashboard.php" class="btn btn-light btn-sm">Back to Dashboard</a>
-                        </div>
-                    </form>
+                    </div>
                 </div>
             </div>
+
+            <!-- Footer -->
+            <?php include 'includes/footer.php'; ?>
         </div>
     </div>
 </div>
