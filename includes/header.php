@@ -13,19 +13,19 @@ if (!isset($_SESSION)) session_start();
   .nav-profile-text p {
     margin-bottom: 0;
     font-weight: 500;
+    font-size: 14px;
   }
 
   .clock {
     font-size: 14px;
-    margin-right: 1rem;
     color: #6c757d;
     display: flex;
     align-items: center;
     white-space: nowrap;
+    margin-right: 1rem;
   }
 
   .logout-link {
-    margin-left: 1rem;
     font-size: 14px;
     color: #dc3545;
     font-weight: 500;
@@ -37,8 +37,8 @@ if (!isset($_SESSION)) session_start();
   }
 
   .company-logo {
-    height: 40px;
-    margin-left: 1rem;
+    height: 36px;
+    width: auto;
     margin-right: 1rem;
   }
 
@@ -66,55 +66,52 @@ if (!isset($_SESSION)) session_start();
 
     .company-logo {
       height: 30px;
-      margin-left: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .nav-profile-text p,
+    .clock {
+      font-size: 13px;
     }
   }
 </style>
 
-<nav class="navbar p-0 fixed-top d-flex flex-row">
-  <div class="navbar-brand-wrapper d-flex align-items-center justify-content-start px-3">
+<nav class="navbar p-0 fixed-top d-flex align-items-center justify-content-between px-3" style="background-color: #fff;">
+  <!-- Left Section: Logo and Search -->
+  <div class="d-flex align-items-center flex-grow-1">
     <!-- Company Logo -->
-    <a href="/dashboard.php" class="d-flex align-items-center">
-      <img src="/assets/images/KPMG-logo.png" alt="Company Logo" class="company-logo" />
+    <a href="/dashboard.php">
+      <img src="/assets/images/KPMG-logo.png" alt="KPMG Logo" class="company-logo" />
     </a>
-    <!-- Sidebar toggle (optional for mobile) -->
-    <button class="navbar-toggler d-lg-none border-0" type="button" data-toggle="minimize">
-      <span class="mdi mdi-menu text-primary"></span>
-    </button>
-  </div>
 
-  <div class="navbar-menu-wrapper flex-grow d-flex flex-column flex-lg-row align-items-stretch justify-content-between">
     <!-- Search Bar -->
-    <form class="d-none d-md-flex input-group w-100 w-lg-50 mx-lg-3 mt-2 mt-lg-0" action="/search/quick_search.php" method="get">
+    <form class="d-none d-md-flex input-group w-100 w-lg-50" action="/search/quick_search.php" method="get">
       <input type="text" name="q" class="form-control" placeholder="Search ID, Client, Branch" />
       <button class="btn btn-sm btn-outline-primary" type="submit">Search</button>
     </form>
+  </div>
 
-    <ul class="navbar-nav d-flex flex-column flex-lg-row align-items-start align-items-lg-center px-3 px-lg-0 gap-2 gap-lg-0 mt-2 mt-lg-0">
-      <!-- Clock -->
-      <li class="nav-item clock me-lg-3" id="liveClock">
-        <i class="mdi mdi-clock-outline me-1"></i> --
-      </li>
+  <!-- Right Section: Clock, Profile, Logout -->
+  <div class="d-flex align-items-center">
+    <!-- Clock -->
+    <div class="clock" id="liveClock">
+      <i class="mdi mdi-clock-outline me-1"></i> --
+    </div>
 
-      <!-- Profile Link -->
-      <li class="nav-item d-flex align-items-center me-lg-3">
-        <a class="d-flex align-items-center text-decoration-none" href="/profile.php" title="View Profile">
-          <div class="nav-profile-img me-2">
-            <img src="<?= '/' . htmlspecialchars($_SESSION['profile_pic'] ?? 'assets/images/uploads/default.png') ?>" alt="profile" />
-          </div>
-          <div class="nav-profile-text">
-            <p class="text-black">Hello, <?= htmlspecialchars($_SESSION['username'] ?? 'User') ?></p>
-          </div>
-        </a>
-      </li>
+    <!-- Profile -->
+    <a href="/profile.php" class="d-flex align-items-center text-decoration-none me-3">
+      <div class="nav-profile-img me-2">
+        <img src="<?= '/' . htmlspecialchars($_SESSION['profile_pic'] ?? 'assets/images/uploads/default.png') ?>" alt="profile" />
+      </div>
+      <div class="nav-profile-text">
+        <p class="text-black mb-0">Hello, <?= htmlspecialchars($_SESSION['username'] ?? 'User') ?></p>
+      </div>
+    </a>
 
-      <!-- Logout -->
-      <li class="nav-item">
-        <a class="logout-link" href="/logout.php" title="Logout">
-          <i class="mdi mdi-logout"></i> Logout
-        </a>
-      </li>
-    </ul>
+    <!-- Logout -->
+    <a class="logout-link" href="/logout.php" title="Logout">
+      <i class="mdi mdi-logout"></i> Logout
+    </a>
   </div>
 </nav>
 
