@@ -13,31 +13,44 @@ $stmt->execute();
 $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 
-// Update if form submitted
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = $_POST['user_email'];
     $phone = $_POST['user_phonenumber'];
+    $target_file = $user['profile_pic'];
 
-    // Handle optional profile pic upload
+    // File upload validation
     if (!empty($_FILES['profile_pic']['name'])) {
-        $target_dir = "assets/images/uploads/";
-        $filename = basename($_FILES["profile_pic"]["name"]);
-        $target_file = $target_dir . time() . "_" . $filename;
-        move_uploaded_file($_FILES["profile_pic"]["tmp_name"], $target_file);
-    } else {
-        $target_file = $user['profile_pic']; // Keep existing
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
+        $max_file_size = 5 * 1024 * 1024; // 5MB
+        $file_type = $_FILES['profile_pic']['type'];
+        $file_size = $_FILES['profile_pic']['size'];
+        $tmp_name = $_FILES['profile_pic']['tmp_name'];
+        $filename = basename($_FILES['profile_pic']['name']);
+        $upload_path = "assets/images/uploads/" . time() . "_" . $filename;
+
+        if (!in_array($file_type, $allowed_types)) {
+            $error = "❌ Only JPG, PNG, or GIF images are allowed.";
+        } elseif ($file_size > $max_file_size) {
+            $error = "❌ Image must be less than 5MB.";
+        } elseif (!move_uploaded_file($tmp_name, $upload_path)) {
+            $error = "❌ Failed to upload image.";
+        } else {
+            $target_file = $upload_path;
+        }
     }
 
-    $update = $conn->prepare("UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ? WHERE user_id = ?");
-    $update->bind_param("ssss", $email, $phone, $target_file, $user_id);
-    if ($update->execute()) {
-        $_SESSION['profile_pic'] = $target_file;
-        $success = "✅ Profile updated successfully.";
-        $user['user_email'] = $email;
-        $user['user_phonenumber'] = $phone;
-        $user['profile_pic'] = $target_file;
-    } else {
-        $error = "❌ Update failed.";
+    if (!$error) {
+        $update = $conn->prepare("UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ? WHERE user_id = ?");
+        $update->bind_param("ssss", $email, $phone, $target_file, $user_id);
+        if ($update->execute()) {
+            $_SESSION['profile_pic'] = $target_file;
+            $success = "✅ Profile updated successfully.";
+            $user['user_email'] = $email;
+            $user['user_phonenumber'] = $phone;
+            $user['profile_pic'] = $target_file;
+        } else {
+            $error = "❌ Update failed.";
+        }
     }
 }
 ?>
@@ -93,7 +106,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                         <div class="form-group">
                             <label>Upload New Profile Picture</label>
-                            <input type="file" name="profile_pic" class="form-control">
+                            <input type="file" name="profile_pic" class="form-control" accept=".jpg,.jpeg,.png,.gif">
+                            <small class="text-muted">Max size: 5MB | Types: JPG, PNG, GIF</small>
                         </div>
 
                         <div class="mt-4">
