@@ -18,8 +18,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $level_id = $_POST['level_id'];
 
     try {
-        $stmt = $conn->prepare("INSERT INTO users (username, password, level_id) VALUES (?, ?, ?)");
-        $stmt->bind_param("ssi", $username, $password, $level_id);
+        $default_profile_pic = 'assets/images/default.png';
+        $null_email = null;
+
+        $stmt = $conn->prepare("INSERT INTO users (username, password, level_id, user_email, profile_pic) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssiss", $username, $password, $level_id, $null_email, $default_profile_pic);
+
         $stmt->execute();
 
         header("Location: login.php");
