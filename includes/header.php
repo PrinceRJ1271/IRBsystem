@@ -39,7 +39,7 @@ if (!isset($_SESSION)) session_start();
   .company-logo {
     height: 50px;
     width: auto;
-    margin-right: 1rem;
+    margin-right: 3rem;
   }
 
   .search-form {
