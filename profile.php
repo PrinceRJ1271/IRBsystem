@@ -13,6 +13,9 @@ $stmt->execute();
 $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 
+// Set fallback profile picture if none is stored
+$display_pic = !empty($user['profile_pic']) ? htmlspecialchars($user['profile_pic']) : 'assets/images/uploads/default.png';
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = $_POST['user_email'];
     $phone = $_POST['user_phonenumber'];
@@ -48,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $user['user_email'] = $email;
             $user['user_phonenumber'] = $phone;
             $user['profile_pic'] = $target_file;
+            $display_pic = $target_file; // update for display
         } else {
             $error = "❌ Update failed.";
         }
@@ -90,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     <form method="post" enctype="multipart/form-data">
                         <div class="text-center mb-4">
-                            <img src="<?= htmlspecialchars($user['profile_pic']) ?>" class="profile-img mb-2" alt="Profile Picture">
+                            <img src="<?= $display_pic ?>" class="profile-img mb-2" alt="Profile Picture">
                             <h5 class="text-primary mt-2"><?= htmlspecialchars($user['username']) ?></h5>
                         </div>
 
