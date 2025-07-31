@@ -21,9 +21,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $user_id = uniqid('usr_'); // Generate unique user ID
     $default_profile_pic = 'assets/images/default.png';
     $null_email = null;
+    $null_phone = null;
 
-    $stmt = $conn->prepare("INSERT INTO users (user_id, username, password, level_id, user_email, profile_pic) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("sssiss", $user_id, $username, $password, $level_id, $null_email, $default_profile_pic);
+    $stmt = $conn->prepare("INSERT INTO users (user_id, username, password, level_id, user_email, user_phonenumber, profile_pic) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssisss", $user_id, $username, $password, $level_id, $null_email, $null_phone, $default_profile_pic);
 
     $stmt->execute();
 
