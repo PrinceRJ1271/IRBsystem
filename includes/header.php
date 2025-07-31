@@ -43,7 +43,7 @@ if (!isset($_SESSION)) session_start();
   }
 
   .search-form {
-    width: 900px;
+    width: 935px;
     margin-right: 1rem;
   }
 
