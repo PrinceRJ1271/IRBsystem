@@ -1,11 +1,11 @@
 <?php
 session_start();
-if (!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['username'])) {
     header("Location: login.php");
     exit();
 }
 
-$user_id = $_SESSION['user_id'];
+$username = $_SESSION['username'];
 $level_id = $_SESSION['level_id'];
 ?>
 
@@ -73,7 +73,7 @@ $level_id = $_SESSION['level_id'];
         <div class="content-wrapper">
 
           <div class="hero-welcome shadow-sm">
-            <h2>Welcome back, <strong><?php echo htmlspecialchars($user_id); ?></strong></h2>
+            <h2>Welcome back, <strong><?php echo htmlspecialchars($username); ?></strong></h2>
             <p class="mb-0">You are logged in as <strong>Level <?php echo $level_id; ?></strong>.</p>
           </div>
 
