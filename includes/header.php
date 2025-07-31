@@ -71,9 +71,6 @@ if (!isset($_SESSION)) session_start();
           <a class="dropdown-item" href="/profile.php">
             <i class="mdi mdi-account me-2"></i> View Profile
           </a>
-          <a class="dropdown-item" href="/change_password.php">
-            <i class="mdi mdi-lock me-2"></i> Change Password
-          </a>
           <div class="dropdown-divider"></div>
           <a class="dropdown-item" href="/logout.php">
             <i class="mdi mdi-logout me-2"></i> Logout
