@@ -15,7 +15,8 @@ $user = $result->fetch_assoc();
 
 // Determine profile picture to display
 $profile_path = $user['profile_pic'];
-$display_pic = (file_exists($profile_path) && !empty($profile_path)) ? $profile_path : 'assets/images/uploads/default.png';
+$default_pic = 'assets/images/uploads/default.png';
+$display_pic = (!empty($profile_path) && file_exists($profile_path)) ? $profile_path : $default_pic;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['user_email']);
@@ -50,6 +51,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($update->execute()) {
             $_SESSION['profile_pic'] = $target_file;
             $success = "✅ Profile updated successfully.";
+
+            // Refresh user data
             $user['user_email'] = $email;
             $user['user_phonenumber'] = $phone;
             $user['profile_pic'] = $target_file;
@@ -103,13 +106,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="form-group">
                             <label>Email address</label>
                             <input type="email" name="user_email" class="form-control"
-                                   value="<?= htmlspecialchars($user['user_email']) ?>" placeholder="Enter email">
+                                   value="<?= htmlspecialchars($user['user_email']) ?>" placeholder="Enter email" required>
                         </div>
 
                         <div class="form-group">
                             <label>Phone Number</label>
                             <input type="text" name="user_phonenumber" class="form-control"
-                                   value="<?= htmlspecialchars($user['user_phonenumber']) ?>" placeholder="Enter phone number">
+                                   value="<?= htmlspecialchars($user['user_phonenumber']) ?>" placeholder="Enter phone number" required>
                         </div>
 
                         <div class="form-group">
@@ -135,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script src="assets/js/hoverable-collapse.js"></script>
 <script src="assets/js/misc.js"></script>
 
-<!-- Live preview script -->
+<!-- Live preview -->
 <script>
     function previewImage(event) {
         const preview = document.getElementById('previewImage');
