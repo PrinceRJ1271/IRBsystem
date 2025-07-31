@@ -94,14 +94,15 @@ if (!isset($_SESSION)) session_start();
       <img src="/assets/images/KPMG-logo.png" alt="KPMG Logo" class="company-logo" />
     </a>
 
-    <!-- Search Bar -->
+  <!-- Right Section: Search Bar, Clock, Profile, Logout -->
+
+  <!-- Search Bar -->
     <form class="d-none d-md-flex input-group search-form" action="/search/quick_search.php" method="get">
       <input type="text" name="q" class="form-control form-control-sm" placeholder="Search ID, Client, Branch" />
       <button class="btn btn-sm btn-outline-primary" type="submit">Search</button>
     </form>
   </div>
 
-  <!-- Right Section: Clock, Profile, Logout -->
   <div class="d-flex align-items-center">
     <!-- Clock -->
     <div class="clock" id="liveClock">
