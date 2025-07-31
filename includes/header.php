@@ -75,7 +75,7 @@ if (!isset($_SESSION)) session_start();
     }
 
     .navbar {
-      height: 120px !important; /* Adjust as needed: 80px–100px is typical */
+      height: 400px !important; /* Adjust as needed: 80px–100px is typical */
       align-items: center;
     }
   }
