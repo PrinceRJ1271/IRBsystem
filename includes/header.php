@@ -44,13 +44,13 @@ if (!isset($_SESSION)) session_start();
 
   @media (max-width: 767.98px) {
     .navbar {
-      min-height: 72px;
+      min-height: 100px;
       padding-top: 0.75rem;
       padding-bottom: 0.75rem;
       background-color: #fff;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* optional for visual separation */
     }
-    
+
     .navbar-menu-wrapper {
       flex-direction: column !important;
       align-items: flex-start !important;
