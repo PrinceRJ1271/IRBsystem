@@ -40,7 +40,7 @@ if (!isset($_SESSION)) session_start();
     height: 50px;
     width: auto;
     margin-right: 1rem;
-    padding-right: 5rem; /* optional subtle internal spacing */
+    padding-right: 8rem; /* optional subtle internal spacing */
   }
 
   .search-form {
