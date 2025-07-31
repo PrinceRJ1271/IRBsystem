@@ -39,7 +39,8 @@ if (!isset($_SESSION)) session_start();
   .company-logo {
     height: 50px;
     width: auto;
-    margin-right: 3rem;
+    margin-right: 1rem;
+    padding-right: 2rem; /* optional subtle internal spacing */
   }
 
   .search-form {
