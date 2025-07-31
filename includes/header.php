@@ -18,7 +18,7 @@ if (!isset($_SESSION)) session_start();
       <li class="nav-item nav-profile dropdown">
         <a class="nav-link dropdown-toggle" href="/profile.php" title="View Profile">
           <div class="nav-profile-img">
-            <img src="<?= htmlspecialchars($_SESSION['profile_pic'] ?? 'assets/images/default.png') ?>" alt="profile" />
+            <img src="<?= htmlspecialchars($_SESSION['profile_pic'] ?? 'assets/images/uploads/default.png') ?>" alt="profile" />
           </div>
           <div class="nav-profile-text">
             <p class="mb-1 text-black">Hello, <?= htmlspecialchars($_SESSION['username'] ?? 'User') ?></p>
