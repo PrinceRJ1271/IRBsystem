@@ -18,22 +18,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $level_id = $_POST['level_id'];
 
     try {
-        $default_profile_pic = 'assets/images/default.png';
-        $null_email = null;
+    $user_id = uniqid('usr_'); // Generate unique user ID
+    $default_profile_pic = 'assets/images/default.png';
+    $null_email = null;
 
-        $stmt = $conn->prepare("INSERT INTO users (username, password, level_id, user_email, profile_pic) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssiss", $username, $password, $level_id, $null_email, $default_profile_pic);
+    $stmt = $conn->prepare("INSERT INTO users (user_id, username, password, level_id, user_email, profile_pic) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssiss", $user_id, $username, $password, $level_id, $null_email, $default_profile_pic);
 
-        $stmt->execute();
+    $stmt->execute();
 
-        header("Location: login.php");
-        exit();
+    header("Location: login.php");
+    exit();
     } catch (mysqli_sql_exception $e) {
-        if (str_contains($e->getMessage(), 'Duplicate entry')) {
-            $error = "⚠️ This username is already taken. Please choose another.";
-        } else {
-            $error = "❌ Registration failed. Please try again later.";
-        }
+        $error = "❌ Registration failed: " . $e->getMessage(); // For debugging
     }
 }
 ?>
