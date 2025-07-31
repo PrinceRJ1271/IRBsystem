@@ -37,7 +37,7 @@ if (!isset($_SESSION)) session_start();
   }
 
   .company-logo {
-    height: 50px;
+    height: 55px;
     width: auto;
     margin-right: 1rem;
     padding-right: 6rem; /* optional subtle internal spacing */
