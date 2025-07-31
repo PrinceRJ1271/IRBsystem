@@ -13,15 +13,16 @@ $stmt->execute();
 $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 
-// Set default profile pic if not available
-$display_pic = (!empty($user['profile_pic']) && file_exists($user['profile_pic'])) ? $user['profile_pic'] : 'assets/images/default.png';
+// Determine profile picture to display
+$profile_path = $user['profile_pic'];
+$display_pic = (file_exists($profile_path) && !empty($profile_path)) ? $profile_path : 'assets/images/uploads/default.png';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['user_email']);
     $phone = trim($_POST['user_phonenumber']);
     $target_file = $user['profile_pic'];
 
-    // Handle profile picture upload if present
+    // Handle profile picture upload
     if (!empty($_FILES['profile_pic']['name'])) {
         $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
         $max_file_size = 5 * 1024 * 1024; // 5MB
@@ -42,7 +43,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Update profile only if no error
     if (empty($error)) {
         $update = $conn->prepare("UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ? WHERE user_id = ?");
         $update->bind_param("ssss", $email, $phone, $target_file, $user_id);
@@ -50,8 +50,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($update->execute()) {
             $_SESSION['profile_pic'] = $target_file;
             $success = "✅ Profile updated successfully.";
-
-            // Refresh displayed values
             $user['user_email'] = $email;
             $user['user_phonenumber'] = $phone;
             $user['profile_pic'] = $target_file;
@@ -98,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <form method="post" enctype="multipart/form-data">
                         <div class="text-center mb-4">
-                            <img src="<?= htmlspecialchars($display_pic) ?>" class="profile-img mb-2" alt="Profile Picture">
+                            <img id="previewImage" src="<?= htmlspecialchars($display_pic) ?>" class="profile-img mb-2" alt="Profile Picture">
                             <h5 class="text-primary mt-2"><?= htmlspecialchars($user['username']) ?></h5>
                         </div>
 
@@ -116,7 +114,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         <div class="form-group">
                             <label>Upload New Profile Picture</label>
-                            <input type="file" name="profile_pic" class="form-control" accept=".jpg,.jpeg,.png,.gif">
+                            <input type="file" name="profile_pic" class="form-control" accept=".jpg,.jpeg,.png,.gif"
+                                   onchange="previewImage(event)">
                             <small class="text-muted">Max size: 5MB | Types: JPG, PNG, GIF</small>
                         </div>
 
@@ -135,5 +134,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script src="assets/js/off-canvas.js"></script>
 <script src="assets/js/hoverable-collapse.js"></script>
 <script src="assets/js/misc.js"></script>
+
+<!-- Live preview script -->
+<script>
+    function previewImage(event) {
+        const preview = document.getElementById('previewImage');
+        const file = event.target.files[0];
+        if (file) {
+            preview.src = URL.createObjectURL(file);
+        }
+    }
+</script>
 </body>
 </html>
