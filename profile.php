@@ -26,6 +26,7 @@ $display_pic = (!empty($profile_path) && file_exists($profile_path)) ? $profile_
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['user_email']);
     $phone = trim($_POST['user_phonenumber']);
+    $new_password = trim($_POST['user_password'] ?? '');
     $target_file = $user['profile_pic'];
 
     if (!empty($_FILES['profile_pic']['name'])) {
@@ -49,8 +50,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($error)) {
-        $stmt = $conn->prepare("UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ? WHERE user_id = ?");
-        $stmt->bind_param("ssss", $email, $phone, $target_file, $user_id);
+        if (!empty($new_password)) {
+            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+            $stmt = $conn->prepare("UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ?, user_password = ? WHERE user_id = ?");
+            $stmt->bind_param("sssss", $email, $phone, $target_file, $hashed_password, $user_id);
+        } else {
+            $stmt = $conn->prepare("UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ? WHERE user_id = ?");
+            $stmt->bind_param("ssss", $email, $phone, $target_file, $user_id);
+        }
 
         if ($stmt->execute()) {
             $_SESSION['profile_pic'] = $target_file;
@@ -92,6 +99,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .form-group label {
             font-weight: 500;
         }
+        .password-toggle {
+            position: relative;
+        }
+        .password-toggle-icon {
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body>
@@ -129,19 +147,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <div class="form-group">
                                         <label>Email address</label>
                                         <input type="email" name="user_email" class="form-control" required
-                                            value="<?= htmlspecialchars($user['user_email']) ?>" placeholder="Enter email">
+                                               value="<?= htmlspecialchars($user['user_email']) ?>" placeholder="Enter email">
                                     </div>
 
                                     <div class="form-group">
                                         <label>Phone Number</label>
                                         <input type="text" name="user_phonenumber" class="form-control" required
-                                            value="<?= htmlspecialchars($user['user_phonenumber']) ?>" placeholder="Enter phone number">
+                                               value="<?= htmlspecialchars($user['user_phonenumber']) ?>" placeholder="Enter phone number">
+                                    </div>
+
+                                    <div class="form-group password-toggle">
+                                        <label>New Password <small>(leave blank to keep current)</small></label>
+                                        <input type="password" name="user_password" class="form-control" id="passwordInput" placeholder="Enter new password">
+                                        <i class="mdi mdi-eye-off password-toggle-icon" id="togglePassword"></i>
                                     </div>
 
                                     <div class="form-group">
                                         <label>Upload New Profile Picture</label>
                                         <input type="file" name="profile_pic" class="form-control" accept=".jpg,.jpeg,.png,.gif"
-                                            onchange="previewImage(event)">
+                                               onchange="previewImage(event)">
                                         <small class="text-muted">Max size: 5MB | Types: JPG, PNG, GIF</small>
                                     </div>
 
@@ -175,6 +199,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             preview.src = URL.createObjectURL(file);
         }
     }
+
+    // Toggle password visibility
+    document.getElementById('togglePassword').addEventListener('click', function () {
+        const passwordInput = document.getElementById('passwordInput');
+        const icon = this;
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            icon.classList.remove("mdi-eye-off");
+            icon.classList.add("mdi-eye");
+        } else {
+            passwordInput.type = "password";
+            icon.classList.remove("mdi-eye");
+            icon.classList.add("mdi-eye-off");
+        }
+    });
 </script>
 </body>
 </html>
