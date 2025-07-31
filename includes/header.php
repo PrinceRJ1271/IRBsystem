@@ -3,8 +3,8 @@ if (!isset($_SESSION)) session_start();
 ?>
 <style>
   .nav-profile-img img {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     object-fit: cover;
     border-radius: 50%;
     border: 2px solid #fff;
@@ -13,10 +13,11 @@ if (!isset($_SESSION)) session_start();
   .nav-profile-text p {
     margin-bottom: 0;
     font-weight: 500;
+    font-size: 15px;
   }
 
   .clock {
-    font-size: 14px;
+    font-size: 15px;
     color: #6c757d;
     display: flex;
     align-items: center;
@@ -24,14 +25,17 @@ if (!isset($_SESSION)) session_start();
   }
 
   .logout-link {
-    font-size: 14px;
+    font-size: 15px;
     color: #dc3545;
     font-weight: 500;
     text-decoration: none;
+    display: flex;
+    align-items: center;
   }
 
   .logout-link i {
-    margin-right: 4px;
+    font-size: 18px;
+    margin-right: 6px;
   }
 
   @media (max-width: 767.98px) {
@@ -47,13 +51,17 @@ if (!isset($_SESSION)) session_start();
       gap: 0.5rem;
     }
 
-    .logout-link {
-      margin-left: 0 !important;
+    .nav-profile-img img {
+      width: 44px;
+      height: 44px;
     }
 
-    .nav-profile-img img {
-      width: 36px;
-      height: 36px;
+    .logout-link {
+      font-size: 14px;
+    }
+
+    .nav-profile-text p {
+      font-size: 14px;
     }
   }
 </style>
@@ -63,7 +71,6 @@ if (!isset($_SESSION)) session_start();
     <a class="navbar-brand brand-logo-mini" href="/dashboard.php">
       <img src="/assets/images/logo-mini.svg" alt="logo" />
     </a>
-    <!-- Mobile toggle icon (assumes you use StarAdmin's sidebar toggle) -->
     <button class="navbar-toggler d-lg-none border-0" type="button" data-toggle="minimize">
       <span class="mdi mdi-menu text-primary"></span>
     </button>
