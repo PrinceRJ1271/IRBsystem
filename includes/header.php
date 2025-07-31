@@ -43,8 +43,8 @@ if (!isset($_SESSION)) session_start();
   }
 
   .search-form {
-    max-width: 400px;
-    width: 100%;
+    width: 250px;
+    margin-right: 1rem;
   }
 
   @media (max-width: 767.98px) {
@@ -80,30 +80,28 @@ if (!isset($_SESSION)) session_start();
     }
 
     .search-form {
-      max-width: 100%;
-      margin-top: 0.5rem;
+      width: 100%;
+      margin: 0.5rem 0;
     }
   }
 </style>
 
 <nav class="navbar p-0 fixed-top d-flex align-items-center justify-content-between px-3" style="background-color: #fff; height: 80px;">
-  <!-- Left Section: Logo and Search -->
-  <div class="d-flex align-items-center flex-grow-1">
-    <!-- Company Logo -->
+  <!-- Left Section: Logo -->
+  <div class="d-flex align-items-center">
     <a href="/dashboard.php">
       <img src="/assets/images/KPMG-logo.png" alt="KPMG Logo" class="company-logo" />
     </a>
+  </div>
 
-  <!-- Right Section: Search Bar, Clock, Profile, Logout -->
-
-  <!-- Search Bar -->
+  <!-- Right Section: Search, Clock, Profile, Logout -->
+  <div class="d-flex align-items-center">
+    <!-- Search Bar -->
     <form class="d-none d-md-flex input-group search-form" action="/search/quick_search.php" method="get">
       <input type="text" name="q" class="form-control form-control-sm" placeholder="Search ID, Client, Branch" />
       <button class="btn btn-sm btn-outline-primary" type="submit">Search</button>
     </form>
-  </div>
 
-  <div class="d-flex align-items-center">
     <!-- Clock -->
     <div class="clock" id="liveClock">
       <i class="mdi mdi-clock-outline me-1"></i> --
