@@ -6,10 +6,9 @@ check_access([1, 2, 3]); // Developer, Manager, Senior
 $success = $error = "";
 
 /* -----------------------------------------------------------
-   Build dropdown: only letters whose follow-up is still Pending
-   Logic: include letters_sent rows for which there is NOT EXISTS
-          a letters_sent_followup row with followup_status='Completed'.
-   (We also join clients just to show a friendly label.)
+   Build dropdown: only letters that REQUIRE follow-up and
+   do NOT yet have a Completed follow-up row.
+   (Join clients for a friendlier label.)
 ----------------------------------------------------------- */
 $ls_options = [];
 $q = "
@@ -19,12 +18,13 @@ $q = "
     ls.sent_date
   FROM letters_sent ls
   LEFT JOIN clients c ON c.client_id = ls.client_id
-  WHERE NOT EXISTS (
-    SELECT 1
-    FROM letters_sent_followup lsf
-    WHERE lsf.letter_sent_id = ls.letter_sent_id
-      AND lsf.followup_status = 'Completed'
-  )
+  WHERE ls.follow_up_required = 1
+    AND NOT EXISTS (
+      SELECT 1
+      FROM letters_sent_followup lsf
+      WHERE lsf.letter_sent_id = ls.letter_sent_id
+        AND lsf.followup_status = 'Completed'
+    )
   ORDER BY ls.sent_date DESC, ls.letter_sent_id DESC
 ";
 if ($res = $conn->query($q)) {
@@ -107,7 +107,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                   <form method="post" class="pt-3" autocomplete="off">
                     <div class="row">
-                      <!-- DROPDOWN: Letter Sent ID (only letters without a Completed follow-up) -->
+                      <!-- DROPDOWN: Letter Sent ID (requires follow-up & not completed yet) -->
                       <div class="col-md-6 form-group">
                         <label><strong>Letter Sent ID</strong></label>
                         <select name="letter_sent_id" class="form-control" required>
