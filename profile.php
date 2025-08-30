@@ -7,70 +7,140 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$user_id = $_SESSION['user_id'];
+/* ---------- Security helpers ---------- */
+function ensureCsrfToken()
+{
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+}
+function verifyCsrfToken($token)
+{
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token ?? '');
+}
+function cleanFilename($name)
+{
+    // keep extension, sanitize basename
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    $base = pathinfo($name, PATHINFO_FILENAME);
+    $base = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $base);
+    return $base . '.' . $ext;
+}
+
+/* ---------- App state ---------- */
+$user_id = (int)$_SESSION['user_id'];
 $error = '';
 $success = '';
 
-// Fetch user data from DB
-function getUserData($conn, $user_id) {
+/* ---------- Fetch user ---------- */
+function getUserData($conn, $user_id)
+{
     $stmt = $conn->prepare("SELECT username, user_email, user_phonenumber, profile_pic FROM users WHERE user_id = ?");
-    $stmt->bind_param("s", $user_id);
+    $stmt->bind_param("i", $user_id);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
 }
 
 $user = getUserData($conn, $user_id);
-$profile_path = $user['profile_pic'];
+$profile_path = $user['profile_pic'] ?? '';
 $display_pic = (!empty($profile_path) && file_exists($profile_path)) ? $profile_path : 'assets/images/uploads/default.png';
 
+ensureCsrfToken();
+
+/* ---------- Handle POST ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['user_email']);
-    $phone = trim($_POST['user_phonenumber']);
-    $new_password = trim($_POST['user_password'] ?? '');
-    $target_file = $user['profile_pic'];
+    // CSRF check first
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = "❌ Invalid session token. Please refresh and try again.";
+    } else {
+        $email = trim($_POST['user_email'] ?? '');
+        $phone = trim($_POST['user_phonenumber'] ?? '');
+        $new_password = trim($_POST['user_password'] ?? '');
+        $target_file = $user['profile_pic']; // keep existing by default
 
-    if (!empty($_FILES['profile_pic']['name'])) {
-        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-        $max_file_size = 5 * 1024 * 1024;
-        $file_type = $_FILES['profile_pic']['type'];
-        $file_size = $_FILES['profile_pic']['size'];
-        $tmp_name = $_FILES['profile_pic']['tmp_name'];
-        $filename = time() . "_" . basename($_FILES['profile_pic']['name']);
-        $upload_path = "assets/images/uploads/" . $filename;
+        // --- Validate & process image upload (optional) ---
+        if (empty($error) && !empty($_FILES['profile_pic']['name'])) {
+            $upload_dir = "assets/images/uploads";
+            if (!is_dir($upload_dir)) {
+                @mkdir($upload_dir, 0750, true);
+            }
 
-        if (!in_array($file_type, $allowed_types)) {
-            $error = "❌ Only JPG, PNG, or GIF images are allowed.";
-        } elseif ($file_size > $max_file_size) {
-            $error = "❌ Image must be less than 5MB.";
-        } elseif (!move_uploaded_file($tmp_name, $upload_path)) {
-            $error = "❌ Failed to upload image.";
-        } else {
-            $target_file = $upload_path;
+            $max_file_size = 5 * 1024 * 1024; // 5MB
+            $tmp_name = $_FILES['profile_pic']['tmp_name'];
+            $orig_name = $_FILES['profile_pic']['name'];
+            $size = (int)($_FILES['profile_pic']['size'] ?? 0);
+
+            if ($size <= 0 || $size > $max_file_size) {
+                $error = "❌ Image must be between 1 byte and 5MB.";
+            } else {
+                // Server-side MIME check
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
+                $mime = $finfo->file($tmp_name);
+                $allowed_mimes = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
+                if (!array_key_exists($mime, $allowed_mimes)) {
+                    $error = "❌ Only JPG, PNG, or GIF images are allowed.";
+                } else {
+                    // Ensure it's a real image + check dimensions
+                    $imgInfo = @getimagesize($tmp_name);
+                    if ($imgInfo === false) {
+                        $error = "❌ Uploaded file is not a valid image.";
+                    } else {
+                        [$w, $h] = $imgInfo;
+                        if ($w < 16 || $h < 16 || $w > 8000 || $h > 8000) {
+                            $error = "❌ Image dimensions are not acceptable.";
+                        } else {
+                            // Build a safe filename: timestamp + random + sanitized original
+                            $safeOrig = cleanFilename($orig_name);
+                            $rand = bin2hex(random_bytes(4));
+                            $filename = time() . "_" . $rand . "_" . $safeOrig;
+                            $dest = rtrim($upload_dir, '/') . '/' . $filename;
+
+                            if (!move_uploaded_file($tmp_name, $dest)) {
+                                $error = "❌ Failed to upload image.";
+                            } else {
+                                // Optionally, restrict permissions
+                                @chmod($dest, 0640);
+                                $target_file = $dest;
+                            }
+                        }
+                    }
+                }
+            }
         }
-    }
 
-    if (empty($error)) {
-        if (!empty($new_password)) {
-            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-            $stmt = $conn->prepare("UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ?, user_password = ? WHERE user_id = ?");
-            $stmt->bind_param("sssss", $email, $phone, $target_file, $hashed_password, $user_id);
-        } else {
-            $stmt = $conn->prepare("UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ? WHERE user_id = ?");
-            $stmt->bind_param("ssss", $email, $phone, $target_file, $user_id);
-        }
+        // --- Update DB if no errors ---
+        if (empty($error)) {
+            if (!empty($new_password)) {
+                $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+                // IMPORTANT FIX: use `password` column (not `user_password`)
+                $stmt = $conn->prepare("UPDATE users 
+                    SET user_email = ?, user_phonenumber = ?, profile_pic = ?, password = ? 
+                    WHERE user_id = ?");
+                $stmt->bind_param("ssssi", $email, $phone, $target_file, $hashed_password, $user_id);
+            } else {
+                $stmt = $conn->prepare("UPDATE users 
+                    SET user_email = ?, user_phonenumber = ?, profile_pic = ? 
+                    WHERE user_id = ?");
+                $stmt->bind_param("sssi", $email, $phone, $target_file, $user_id);
+            }
 
-        if ($stmt->execute()) {
-            $_SESSION['profile_pic'] = $target_file;
-            $success = "✅ Profile updated successfully.";
-            $user = getUserData($conn, $user_id);
-            $display_pic = (!empty($user['profile_pic']) && file_exists($user['profile_pic'])) ? $user['profile_pic'] : 'assets/images/uploads/default.png';
-        } else {
-            $error = "❌ Update failed. Please try again.";
+            if ($stmt->execute()) {
+                $_SESSION['profile_pic'] = $target_file;
+                $success = "✅ Profile updated successfully.";
+                // Refresh user data for display
+                $user = getUserData($conn, $user_id);
+                $display_pic = (!empty($user['profile_pic']) && file_exists($user['profile_pic']))
+                    ? $user['profile_pic']
+                    : 'assets/images/uploads/default.png';
+                // Rotate CSRF token after successful state change
+                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            } else {
+                $error = "❌ Update failed. Please try again.";
+            }
         }
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -131,14 +201,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <h4 class="page-title">My Profile</h4>
                                 <p class="card-description"> View or update your details below </p>
 
-                                <?php if ($error): ?>
-                                    <div class="alert alert-danger"><?= $error ?></div>
+                                <?php if (!empty($error)): ?>
+                                    <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
                                 <?php endif; ?>
-                                <?php if ($success): ?>
-                                    <div class="alert alert-success"><?= $success ?></div>
+                                <?php if (!empty($success)): ?>
+                                    <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
                                 <?php endif; ?>
 
-                                <form method="post" enctype="multipart/form-data">
+                                <form method="post" enctype="multipart/form-data" autocomplete="off" novalidate>
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                     <div class="text-center mb-4">
                                         <img id="previewImage" src="<?= htmlspecialchars($display_pic) ?>" class="profile-img mb-2" alt="Profile Picture">
                                         <h5 class="text-primary mt-2"><?= htmlspecialchars($user['username']) ?></h5>
