@@ -90,33 +90,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                       </div>
 
                       <div class="col-md-6 form-group">
+                        <label>Company Street</label>
+                        <input type="text" name="street" class="form-control">
+                      </div>
+                      <div class="col-md-6 form-group">
                         <label>PIC Email</label>
                         <input type="email" name="pic_email" class="form-control" required>
                       </div>
-                      <div class="col-md-6 form-group">
-                        <label>Street</label>
-                        <input type="text" name="street" class="form-control">
-                      </div>
+                    
 
                       <div class="col-md-4 form-group">
-                        <label>Postal Code</label>
+                        <label>Company Postal Code</label>
                         <input type="text" name="pcode" class="form-control">
                       </div>
                       <div class="col-md-4 form-group">
-                        <label>City</label>
+                        <label>Company City</label>
                         <input type="text" name="city" class="form-control">
                       </div>
                       <div class="col-md-4 form-group">
-                        <label>State</label>
+                        <label>Company State</label>
                         <input type="text" name="state" class="form-control">
                       </div>
 
                       <div class="col-md-6 form-group">
-                        <label>SIC ID <small>(e.g., 20001)</small></label>
+                        <label>SIC ID <small>(e.g., 3001)</small></label>
                         <input type="text" name="sic_id" class="form-control" required>
                       </div>
                       <div class="col-md-6 form-group">
-                        <label>MIC ID <small>(e.g., 10002)</small></label>
+                        <label>MIC ID <small>(e.g., 2001)</small></label>
                         <input type="text" name="mic_id" class="form-control" required>
                       </div>
                     </div>
