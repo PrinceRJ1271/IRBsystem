@@ -194,13 +194,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                value="<?= htmlspecialchars($_POST['mic_signature'] ?? '') ?>">
                       </div>
 
-                      <div class="col-md-6 form-group d-flex align-items-center">
-                        <label class="mr-3">Follow-up Required</label>
-                        <div class="form-check form-check-primary">
-                          <label class="form-check-label">
-                            <input type="checkbox" class="form-check-input" name="follow_up_required" value="1"
-                              <?= isset($_POST['follow_up_required']) ? 'checked' : '' ?>> Yes
-                          </label>
+                      <!-- Match the checkbox style used in the Received form -->
+                      <div class="col-md-12">
+                        <div class="row pt-3 ps-2">
+                          <div class="col-md-4">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" name="follow_up_required" value="1" id="followUp"
+                                     <?= isset($_POST['follow_up_required']) ? 'checked' : '' ?>>
+                              <label class="form-check-label" for="followUp">Follow-up Required</label>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
