@@ -1,10 +1,10 @@
 <?php
-// register.php — same layout structure as client_form.php (sidebar + header)
+// register.php – styled like client_form.php, with sidebar + header
 session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/auth.php';
 
-// Only Developer (level_id = 1) can access this page
+// Allow ONLY Developer (1)
 check_access([1]);
 
 $error   = "";
@@ -21,11 +21,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password2 = $_POST['confirm_password'] ?? '';
     $level_id  = (int)($_POST['level_id'] ?? 0);
 
-    // Optional fields (can be blank)
+    // Optional fields
     $email = trim($_POST['user_email'] ?? '');
     $phone = trim($_POST['user_phonenumber'] ?? '');
 
-    // Minimal required validation
     if ($username === '') {
         $error = "Please enter a username.";
     } elseif ($password === '' || strlen($password) < 6) {
@@ -35,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($level_id < 1 || $level_id > 4) {
         $error = "Please select a valid role.";
     } else {
-        // Default profile pic (if none uploaded)
+        // Default profile pic
         $profile_path = "assets/images/default.png";
 
         // Optional profile image upload
@@ -76,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bind_param("sssisss", $user_id, $username, $hashed, $level_id, $email, $phone, $profile_path);
                 $stmt->execute();
 
-                // Success: don't redirect; show message and clear form
+                // Show success (no redirect) and clear form
                 $success = "✅ User created successfully!";
                 $_POST = [];
             } catch (mysqli_sql_exception $e) {
@@ -92,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta charset="UTF-8" />
   <title>Register User - IRB System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Star Admin / Vendors / Theme CSS (match your forms pages) -->
+  <!-- Star Admin / Vendors / Theme CSS -->
   <link rel="stylesheet" href="assets/vendors/mdi/css/materialdesignicons.min.css">
   <link rel="stylesheet" href="assets/vendors/css/vendor.bundle.base.css">
   <link rel="stylesheet" href="assets/css/style.css">
@@ -110,17 +109,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .progress { height: 6px; border-radius: 999px; }
     .progress-bar { transition: width .25s ease; }
     .strength-text { font-size: .85rem; margin-top: .25rem; }
+
+    /* ---- Make sidebar links plain even when 'active' gets added by template JS ---- */
+    .sidebar .nav .nav-item.active > .nav-link,
+    .sidebar .nav .nav-item .nav-link.active {
+      background: transparent !important;
+      box-shadow: none !important;
+      font-weight: 400 !important;
+      border-radius: 0 !important;
+    }
+    .sidebar .nav .nav-item.active > .nav-link .menu-title,
+    .sidebar .nav .nav-item .nav-link.active .menu-title,
+    .sidebar .nav .nav-item.active > .nav-link i,
+    .sidebar .nav .nav-item .nav-link.active i {
+      color: inherit !important;
+      font-weight: 400 !important;
+    }
   </style>
 </head>
 <body>
   <div class="container-scroller">
     <div class="container-fluid page-body-wrapper">
 
-      <!-- Sidebar (same include position/order as client_form.php) -->
+      <!-- Sidebar -->
       <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
       <div class="main-panel">
-        <!-- Header (same include position/order as client_form.php) -->
+        <!-- Header -->
         <?php include __DIR__ . '/includes/header.php'; ?>
 
         <div class="content-wrapper">
@@ -185,8 +200,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       <input type="password" name="password" id="password" class="form-control" placeholder="Enter password" required>
                       <i class="mdi mdi-eye-off toggle-password" id="togglePassword" title="Show/Hide password"></i>
                       <div class="invalid-feedback">Please enter a password (min 6 characters).</div>
-
-                      <!-- StarAdmin2-styled strength meter -->
                       <div class="strength-wrap">
                         <div class="progress">
                           <div id="strengthBar" class="progress-bar" role="progressbar" style="width:0%"></div>
@@ -222,20 +235,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </div>
         </div>
 
-        <!-- Footer (same include position/order as client_form.php) -->
+        <!-- Footer -->
         <?php include __DIR__ . '/includes/footer.php'; ?>
 
       </div>
     </div>
   </div>
 
-  <!-- JS bundle (match forms pages) -->
+  <!-- JS bundle -->
   <script src="assets/vendors/js/vendor.bundle.base.js"></script>
   <script src="assets/js/off-canvas.js"></script>
   <script src="assets/js/hoverable-collapse.js"></script>
   <script src="assets/js/misc.js"></script>
 
   <script>
+    // Remove any 'active' class StarAdmin attaches so all links look plain
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.sidebar .nav .nav-item.active').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.sidebar .nav .nav-link.active').forEach(el => el.classList.remove('active'));
+    });
+
     // Bootstrap validation styling
     (() => {
       'use strict';
@@ -267,17 +286,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     t1.addEventListener('click', () => toggleVisibility(pwd, t1));
     t2.addEventListener('click', () => toggleVisibility(cpw, t2));
 
-    // Password strength meter (StarAdmin look via progress bar)
+    // Password strength meter
     const strengthBar  = document.getElementById('strengthBar');
     const strengthText = document.getElementById('strengthText');
 
     function assessStrength(value) {
+      // Basic heuristic: length + variety
       let score = 0;
       if (value.length >= 8) score += 1;
       if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score += 1;
       if (/\d/.test(value)) score += 1;
       if (/[\W_]/.test(value)) score += 1;
 
+      // Map to % and labels
       let width = 0, label = 'Too short', cls = 'bg-danger';
       if (value.length === 0) {
         width = 0; label = 'Password strength'; cls = '';
