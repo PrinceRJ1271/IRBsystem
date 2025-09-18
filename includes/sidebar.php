@@ -135,8 +135,7 @@ Roles:
       <li class="nav-divider"></li>
     <?php endif; ?>
 
-    <?php if ($isDev || $isAdmin): ?>
-      <!-- Delivery (Developer & Admin only) -->
+    <?php if ($isDev || $isMgr || $isAdmin): ?>
       <li class="nav-item nav-category">DELIVERY</li>
       <li class="nav-item">
         <a class="nav-link" href="/forms/letter_delivery_form.php">
@@ -164,17 +163,6 @@ Roles:
       <a class="nav-link" href="/search/quick_search.php">
         <i class="mdi mdi-magnify menu-icon"></i>
         <span class="menu-title">Quick Search</span>
-      </a>
-    </li>
-
-    <!-- Divider before logout -->
-    <li class="nav-divider"></li>
-
-    <!-- Logout (all roles) -->
-    <li class="nav-item">
-      <a class="nav-link" href="/logout.php">
-        <i class="mdi mdi-logout menu-icon"></i>
-        <span class="menu-title">Logout</span>
       </a>
     </li>
 
