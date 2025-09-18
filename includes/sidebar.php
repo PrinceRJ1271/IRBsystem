@@ -17,6 +17,7 @@ Roles:
 <nav class="sidebar sidebar-offcanvas" id="sidebar">
   <ul class="nav">
 
+    <!-- Profile -->
     <li class="nav-item nav-profile">
       <a href="#" class="nav-link">
         <div class="nav-profile-text d-flex flex-column">
@@ -43,6 +44,7 @@ Roles:
         <span class="menu-title">Dashboard</span>
       </a>
     </li>
+    <li class="nav-divider"></li>
 
     <?php
       // Convenience booleans
@@ -52,15 +54,19 @@ Roles:
       $isAdmin  = ((int)$level_id === 4);
     ?>
 
+    <?php if ($isDev || $isMgr || $isSenior): ?>
+      <li class="nav-item nav-category">REGISTRATION & SETUP</li>
+    <?php endif; ?>
+
     <?php if ($isDev || $isMgr): ?>
-      <!-- Registration & Setup (Developer & Manager) -->
+      <!-- Developer & Manager -->
       <li class="nav-item">
         <a class="nav-link" href="/forms/client_form.php">
           <i class="mdi mdi-account-plus menu-icon"></i>
           <span class="menu-title">Register Client</span>
         </a>
       </li>
-      <?php if ($isDev): // Developer also sees Register User here (grouped with Client) ?>
+      <?php if ($isDev): ?>
         <li class="nav-item">
           <a class="nav-link" href="/register.php">
             <i class="mdi mdi-account-settings menu-icon"></i>
@@ -80,10 +86,11 @@ Roles:
           <span class="menu-title">Add Letter Type</span>
         </a>
       </li>
+      <li class="nav-divider"></li>
     <?php endif; ?>
 
     <?php if ($isSenior): ?>
-      <!-- Registration & Setup (Senior: NO Register Client/User) -->
+      <!-- Senior -->
       <li class="nav-item">
         <a class="nav-link" href="/forms/irb_branch_form.php">
           <i class="mdi mdi-city menu-icon"></i>
@@ -96,10 +103,11 @@ Roles:
           <span class="menu-title">Add Letter Type</span>
         </a>
       </li>
+      <li class="nav-divider"></li>
     <?php endif; ?>
 
     <?php if ($isDev || $isMgr || $isSenior): ?>
-      <!-- Letters & Follow-ups (Developer, Manager, Senior) -->
+      <li class="nav-item nav-category">LETTERS & FOLLOW-UPS</li>
       <li class="nav-item">
         <a class="nav-link" href="/forms/letter_received_form.php">
           <i class="mdi mdi-inbox-arrow-down menu-icon"></i>
@@ -124,28 +132,32 @@ Roles:
           <span class="menu-title">Follow-up (Sent)</span>
         </a>
       </li>
+      <li class="nav-divider"></li>
     <?php endif; ?>
 
     <?php if ($isDev || $isMgr || $isAdmin): ?>
-      <!-- Letter Delivery (Developer, Manager, Admin Staff) -->
+      <li class="nav-item nav-category">DELIVERY</li>
       <li class="nav-item">
         <a class="nav-link" href="/forms/letter_delivery_form.php">
           <i class="mdi mdi-truck-delivery menu-icon"></i>
           <span class="menu-title">Letter Delivery</span>
         </a>
       </li>
+      <li class="nav-divider"></li>
     <?php endif; ?>
 
     <?php if ($isAdmin): ?>
-      <!-- Admin-only minimal menu additions -->
+      <li class="nav-item nav-category">USER MANAGEMENT</li>
       <li class="nav-item">
         <a class="nav-link" href="/register.php">
           <i class="mdi mdi-account-settings menu-icon"></i>
           <span class="menu-title">Register User</span>
         </a>
       </li>
+      <li class="nav-divider"></li>
     <?php endif; ?>
 
+    <li class="nav-item nav-category">UTILITIES</li>
     <!-- Quick Search (all roles) -->
     <li class="nav-item">
       <a class="nav-link" href="/search/quick_search.php">
