@@ -239,6 +239,9 @@ if ($res = $conn->query("SELECT 'Sent' AS typ, letter_sent_id AS id, sent_date A
 }
 usort($activity, function($a,$b){ return strcmp($b['date'],$a['date']); });
 $activity = array_slice($activity, 0, 6);
+
+// ---------- Precompute donut data safely ----------
+$fu_completed = max(0, ($kpis['recv_month'] + $kpis['sent_month']) - $kpis['pending_fu']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -260,9 +263,11 @@ $activity = array_slice($activity, 0, 6);
     .delta.down{color:#FF7A7A;}
     .spark-wrap{height:60px; margin-top:.35rem;}
     .chart-card{border-radius:1rem; box-shadow:0 4px 12px rgba(0,0,0,.06);}
+
     .list-activity li{display:flex; justify-content:space-between; padding:.5rem 0; border-bottom:1px dashed #eee;}
     .list-activity li:last-child{border-bottom:none;}
-    /* FIX: lock each chart to a predictable height */
+
+    /* lock each chart to a predictable height to avoid runaway growth */
     .chart-wrap { position:relative; width:100%; }
     .chart-wrap.line   { height:320px; }
     .chart-wrap.donut  { height:280px; }
@@ -427,7 +432,6 @@ $activity = array_slice($activity, 0, 6);
   const months      = <?= json_encode($months) ?>;
   const recvSeries  = <?= json_encode($recvSeries) ?>;
   const sentSeries  = <?= json_encode($sentSeries) ?>;
-  const fuData      = <?= json_encode([$kpis['pending_fu'], Math.max(0, ($kpis['recv_month'] + $kpis['sent_month']) - $kpis['pending_fu'])]) ?>;
   const branchLbls  = <?= json_encode($topLabels) ?>;
   const branchVals  = <?= json_encode($topCounts) ?>;
 
@@ -437,6 +441,9 @@ $activity = array_slice($activity, 0, 6);
   const spPend      = <?= json_encode($pend6) ?>;
   const spClients   = <?= json_encode($clients6) ?>;
   const hasClientCreated = <?= json_encode($hasClientCreated) ?>;
+
+  // donut data computed in PHP to avoid mixing PHP with JS Math
+  const fuData = [<?= (int)$kpis['pending_fu'] ?>, <?= (int)$fu_completed ?>];
 
   if (typeof Chart !== 'undefined') {
     // Simple gradient helper for area fills
@@ -484,8 +491,14 @@ $activity = array_slice($activity, 0, 6);
     const donutCtx = document.getElementById('donutFU').getContext('2d');
     new Chart(donutCtx, {
       type: 'doughnut',
-      data: { labels:['Pending','Completed-ish'], datasets:[{ data: <?= json_encode([$kpis['pending_fu'], max(0, ($kpis['recv_month'] + $kpis['sent_month']) - $kpis['pending_fu'])]) ?>, backgroundColor: ['#FF7A7A','#00C19C'] }] },
-      options:{ responsive:true, maintainAspectRatio:false, cutout:'65%', animation:{duration:800}, plugins:{ legend:{ position:'bottom' } } }
+      data: {
+        labels:['Pending','Completed-ish'],
+        datasets:[{ data: fuData, backgroundColor: ['#FF7A7A','#00C19C'] }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, cutout:'65%',
+        animation:{duration:800}, plugins:{ legend:{ position:'bottom' } }
+      }
     });
 
     // Horizontal bar — Top branches
