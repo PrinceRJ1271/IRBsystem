@@ -11,8 +11,26 @@ Roles:
 3 = Senior    (dashboard, add branch, add letter type, letters + follow-ups, quick search)
 4 = Admin     (dashboard, register user, letter delivery, quick search)
 */
-?>
 
+// ----- Active-link helper (so the current page gets the highlighted style) -----
+$basename = basename(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '');
+
+/**
+ * Returns 'active' if the current page basename matches any in $names.
+ * $names can be a string or an array of strings.
+ */
+function active_link($names, $current)
+{
+    if (!is_array($names)) $names = [$names];
+    return in_array($current, $names, true) ? 'active' : '';
+}
+
+// Convenience booleans
+$isDev    = ((int)$level_id === 1);
+$isMgr    = ((int)$level_id === 2);
+$isSenior = ((int)$level_id === 3);
+$isAdmin  = ((int)$level_id === 4);
+?>
 <!-- Sidebar -->
 <nav class="sidebar sidebar-offcanvas" id="sidebar">
   <ul class="nav">
@@ -39,49 +57,43 @@ Roles:
 
     <!-- Dashboard (all roles) -->
     <li class="nav-item">
-      <a class="nav-link" href="/dashboard.php">
+      <a class="nav-link <?= active_link(['dashboard.php', 'index.php'], $basename) ?>" href="/dashboard.php">
         <i class="mdi mdi-view-dashboard menu-icon"></i>
         <span class="menu-title">Dashboard</span>
       </a>
     </li>
     <li class="nav-divider"></li>
 
-    <?php
-      // Convenience booleans
-      $isDev    = ((int)$level_id === 1);
-      $isMgr    = ((int)$level_id === 2);
-      $isSenior = ((int)$level_id === 3);
-      $isAdmin  = ((int)$level_id === 4);
-    ?>
-
     <?php if ($isDev || $isMgr || $isSenior): ?>
-      <li class="nav-item nav-category">REGISTRATION & SETUP</li>
+      <li class="nav-item nav-category">REGISTRATION &amp; SETUP</li>
     <?php endif; ?>
 
     <?php if ($isDev || $isMgr): ?>
       <!-- Developer & Manager -->
       <li class="nav-item">
-        <a class="nav-link" href="/forms/client_form.php">
+        <a class="nav-link <?= active_link('client_form.php', $basename) ?>" href="/forms/client_form.php">
           <i class="mdi mdi-account-plus menu-icon"></i>
           <span class="menu-title">Register Client</span>
         </a>
       </li>
+
       <?php if ($isDev): ?>
         <li class="nav-item">
-          <a class="nav-link" href="/register.php">
+          <a class="nav-link <?= active_link('register.php', $basename) ?>" href="/register.php">
             <i class="mdi mdi-account-settings menu-icon"></i>
             <span class="menu-title">Register User</span>
           </a>
         </li>
       <?php endif; ?>
+
       <li class="nav-item">
-        <a class="nav-link" href="/forms/irb_branch_form.php">
+        <a class="nav-link <?= active_link('irb_branch_form.php', $basename) ?>" href="/forms/irb_branch_form.php">
           <i class="mdi mdi-city menu-icon"></i>
           <span class="menu-title">Add IRB Branch</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/forms/letter_type_form.php">
+        <a class="nav-link <?= active_link('letter_type_form.php', $basename) ?>" href="/forms/letter_type_form.php">
           <i class="mdi mdi-note-plus menu-icon"></i>
           <span class="menu-title">Add Letter Type</span>
         </a>
@@ -92,13 +104,13 @@ Roles:
     <?php if ($isSenior): ?>
       <!-- Senior -->
       <li class="nav-item">
-        <a class="nav-link" href="/forms/irb_branch_form.php">
+        <a class="nav-link <?= active_link('irb_branch_form.php', $basename) ?>" href="/forms/irb_branch_form.php">
           <i class="mdi mdi-city menu-icon"></i>
           <span class="menu-title">Add IRB Branch</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/forms/letter_type_form.php">
+        <a class="nav-link <?= active_link('letter_type_form.php', $basename) ?>" href="/forms/letter_type_form.php">
           <i class="mdi mdi-note-plus menu-icon"></i>
           <span class="menu-title">Add Letter Type</span>
         </a>
@@ -107,27 +119,27 @@ Roles:
     <?php endif; ?>
 
     <?php if ($isDev || $isMgr || $isSenior): ?>
-      <li class="nav-item nav-category">LETTERS & FOLLOW-UPS</li>
+      <li class="nav-item nav-category">LETTERS &amp; FOLLOW-UPS</li>
       <li class="nav-item">
-        <a class="nav-link" href="/forms/letter_received_form.php">
+        <a class="nav-link <?= active_link('letter_received_form.php', $basename) ?>" href="/forms/letter_received_form.php">
           <i class="mdi mdi-inbox-arrow-down menu-icon"></i>
           <span class="menu-title">Letter Received</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/forms/letter_received_followup_form.php">
+        <a class="nav-link <?= active_link('letter_received_followup_form.php', $basename) ?>" href="/forms/letter_received_followup_form.php">
           <i class="mdi mdi-refresh menu-icon"></i>
           <span class="menu-title">Follow-up (Received)</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/forms/letter_sent_form.php">
+        <a class="nav-link <?= active_link('letter_sent_form.php', $basename) ?>" href="/forms/letter_sent_form.php">
           <i class="mdi mdi-send menu-icon"></i>
           <span class="menu-title">Letter Sent</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/forms/letter_sent_followup_form.php">
+        <a class="nav-link <?= active_link('letter_sent_followup_form.php', $basename) ?>" href="/forms/letter_sent_followup_form.php">
           <i class="mdi mdi-reload menu-icon"></i>
           <span class="menu-title">Follow-up (Sent)</span>
         </a>
@@ -138,7 +150,7 @@ Roles:
     <?php if ($isDev || $isMgr || $isAdmin): ?>
       <li class="nav-item nav-category">DELIVERY</li>
       <li class="nav-item">
-        <a class="nav-link" href="/forms/letter_delivery_form.php">
+        <a class="nav-link <?= active_link('letter_delivery_form.php', $basename) ?>" href="/forms/letter_delivery_form.php">
           <i class="mdi mdi-truck-delivery menu-icon"></i>
           <span class="menu-title">Letter Delivery</span>
         </a>
@@ -149,7 +161,7 @@ Roles:
     <?php if ($isAdmin): ?>
       <li class="nav-item nav-category">USER MANAGEMENT</li>
       <li class="nav-item">
-        <a class="nav-link" href="/register.php">
+        <a class="nav-link <?= active_link('register.php', $basename) ?>" href="/register.php">
           <i class="mdi mdi-account-settings menu-icon"></i>
           <span class="menu-title">Register User</span>
         </a>
@@ -158,9 +170,8 @@ Roles:
     <?php endif; ?>
 
     <li class="nav-item nav-category">UTILITIES</li>
-    <!-- Quick Search (all roles) -->
     <li class="nav-item">
-      <a class="nav-link" href="/search/quick_search.php">
+      <a class="nav-link <?= active_link('quick_search.php', $basename) ?>" href="/search/quick_search.php">
         <i class="mdi mdi-magnify menu-icon"></i>
         <span class="menu-title">Quick Search</span>
       </a>
