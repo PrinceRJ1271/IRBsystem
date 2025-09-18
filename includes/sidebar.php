@@ -40,7 +40,7 @@ $level_id = $_SESSION['level_id'] ?? null;
     <!-- Developer Menu -->
     <?php if ($level_id == 1): ?>
       <li class="nav-item">
-        <a class="nav-link" href="#">
+        <a class="nav-link" href="/register.php">
           <i class="mdi mdi-account-settings menu-icon"></i>
           <span class="menu-title">Manage Users</span>
         </a>
