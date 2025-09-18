@@ -42,7 +42,7 @@ $level_id = $_SESSION['level_id'] ?? null;
       <li class="nav-item">
         <a class="nav-link" href="/register.php">
           <i class="mdi mdi-account-settings menu-icon"></i>
-          <span class="menu-title">Manage Users</span>
+          <span class="menu-title">Register User</span>
         </a>
       </li>
       <li class="nav-item">
