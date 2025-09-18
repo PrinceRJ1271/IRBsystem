@@ -1,5 +1,5 @@
 <?php
-// dashboard.php – StarAdmin2 dashboard with role-aware quick links (matching sidebar.php)
+// dashboard.php – StarAdmin2 dashboard (no Quick Links)
 session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/auth.php';
@@ -91,7 +91,7 @@ if ($res = $conn->query("SELECT LOWER(TRIM(followup_status)) s, COUNT(*) c FROM 
   }
 }
 if ($res = $conn->query("SELECT LOWER(TRIM(followup_status)) s, COUNT(*) c FROM letters_sent_followup GROUP BY s")) {
-  while($row = $res->fetch_assoc()){
+  while ($row = $res->fetch_assoc()){
     if ($row['s']==='pending')   $fu['pending']   += (int)$row['c'];
     if ($row['s']==='completed') $fu['completed'] += (int)$row['c'];
   }
@@ -149,8 +149,6 @@ $activity = array_slice($activity, 0, 6);
     .chart-card{border-radius:1rem; box-shadow:0 4px 12px rgba(0,0,0,.06);}
     .list-activity li{display:flex; justify-content:space-between; padding:.5rem 0; border-bottom:1px dashed #eee;}
     .list-activity li:last-child{border-bottom:none;}
-    .quick-link { display:flex; align-items:center; gap:.6rem; padding:.45rem 0; }
-    .quick-link i { font-size:1.1rem; opacity:.85; }
   </style>
 </head>
 <body>
@@ -227,7 +225,7 @@ $activity = array_slice($activity, 0, 6);
           </div>
         </div>
 
-        <!-- Role-aware Quick Links + Branch chart / Activity -->
+        <!-- Branch chart + Recent Activity -->
         <div class="row">
           <div class="col-lg-8 mb-4">
             <div class="card chart-card">
@@ -239,50 +237,6 @@ $activity = array_slice($activity, 0, 6);
           </div>
 
           <div class="col-lg-4 mb-4">
-            <div class="card chart-card mb-4">
-              <div class="card-body">
-                <h5 class="card-title mb-3">Quick Links</h5>
-
-                <!-- Registration & Setup -->
-                <?php if ($isDev || $isMgr || $isSenior || $isAdmin): ?>
-                <p class="text-muted mb-2">Registration &amp; Setup</p>
-                <?php endif; ?>
-                <?php if ($isDev || $isMgr): ?>
-                  <div class="quick-link"><i class="mdi mdi-account-plus"></i><a href="/forms/client_form.php">Register Client</a></div>
-                <?php endif; ?>
-                <?php if ($isDev): ?>
-                  <div class="quick-link"><i class="mdi mdi-account-settings"></i><a href="/register.php">Register User</a></div>
-                <?php endif; ?>
-                <?php if ($isDev || $isMgr || $isSenior): ?>
-                  <div class="quick-link"><i class="mdi mdi-city"></i><a href="/forms/irb_branch_form.php">Add IRB Branch</a></div>
-                  <div class="quick-link"><i class="mdi mdi-note-plus"></i><a href="/forms/letter_type_form.php">Add Letter Type</a></div>
-                <?php endif; ?>
-
-                <hr>
-
-                <!-- Letters & Follow-ups -->
-                <?php if ($isDev || $isMgr || $isSenior): ?>
-                  <p class="text-muted mb-2">Letters &amp; Follow-ups</p>
-                  <div class="quick-link"><i class="mdi mdi-inbox-arrow-down"></i><a href="/forms/letter_received_form.php">Letter Received</a></div>
-                  <div class="quick-link"><i class="mdi mdi-refresh"></i><a href="/forms/letter_received_followup_form.php">Follow-up (Received)</a></div>
-                  <div class="quick-link"><i class="mdi mdi-send"></i><a href="/forms/letter_sent_form.php">Letter Sent</a></div>
-                  <div class="quick-link"><i class="mdi mdi-reload"></i><a href="/forms/letter_sent_followup_form.php">Follow-up (Sent)</a></div>
-                  <hr>
-                <?php endif; ?>
-
-                <!-- Delivery -->
-                <?php if ($isDev || $isMgr || $isAdmin): ?>
-                  <p class="text-muted mb-2">Delivery</p>
-                  <div class="quick-link"><i class="mdi mdi-truck-delivery"></i><a href="/forms/letter_delivery_form.php">Letter Delivery</a></div>
-                  <hr>
-                <?php endif; ?>
-
-                <!-- Utilities -->
-                <p class="text-muted mb-2">Utilities</p>
-                <div class="quick-link"><i class="mdi mdi-magnify"></i><a href="/search/quick_search.php">Quick Search</a></div>
-              </div>
-            </div>
-
             <div class="card chart-card">
               <div class="card-body">
                 <h5 class="card-title mb-3">Recent Activity</h5>
@@ -298,7 +252,6 @@ $activity = array_slice($activity, 0, 6);
                 </ul>
               </div>
             </div>
-
           </div>
         </div>
       </div>
@@ -357,7 +310,7 @@ $activity = array_slice($activity, 0, 6);
     }
   });
 
-  // Horizontal bar
+  // Horizontal bar (branches)
   new Chart(document.getElementById('barBranches'), {
     type:'bar',
     data:{
