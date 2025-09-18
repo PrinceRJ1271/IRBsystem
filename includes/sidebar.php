@@ -157,6 +157,7 @@ $isAdmin  = ((int)$level_id === 4);
     <?php endif; ?>
 
     <li class="nav-item nav-category">UTILITIES</li>
+    <!-- Quick Search (all roles) -->
     <li class="nav-item">
       <a class="nav-link" href="/search/quick_search.php">
         <i class="mdi mdi-magnify menu-icon"></i>
@@ -166,13 +167,3 @@ $isAdmin  = ((int)$level_id === 4);
 
   </ul>
 </nav>
-
-<style>
-  /* Neutralize StarAdmin’s “active” sidebar style */
-  .sidebar .nav .nav-item .nav-link.active {
-    background: transparent !important;
-    box-shadow: none !important;
-    color: inherit !important;
-    font-weight: inherit !important;
-  }
-</style>
