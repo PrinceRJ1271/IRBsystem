@@ -1,5 +1,5 @@
 <?php
-// dashboard.php – StarAdmin2 dashboard (no Quick Links)
+// dashboard.php – StarAdmin2 dashboard with nicer charts (no Quick Links)
 session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/auth.php';
@@ -77,6 +77,7 @@ for ($i = 11; $i >= 0; $i--) {
   $m = (int)date('m', $ts);
   $months[] = $label;
 
+  // received
   if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_received WHERE YEAR(received_date)=? AND MONTH(received_date)=?")) {
     $stmt->bind_param("ii", $y, $m);
     $stmt->execute();
@@ -84,6 +85,7 @@ for ($i = 11; $i >= 0; $i--) {
     $stmt->close();
   } else { $recvSeries[] = 0; }
 
+  // sent
   if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_sent WHERE YEAR(sent_date)=? AND MONTH(sent_date)=?")) {
     $stmt->bind_param("ii", $y, $m);
     $stmt->execute();
@@ -161,6 +163,8 @@ $activity = array_slice($activity, 0, 6);
     .chart-card{border-radius:1rem; box-shadow:0 4px 12px rgba(0,0,0,.06);}
     .list-activity li{display:flex; justify-content:space-between; padding:.5rem 0; border-bottom:1px dashed #eee;}
     .list-activity li:last-child{border-bottom:none;}
+    /* nice canvas height when container grows */
+    .chart-card canvas{min-height:260px;}
   </style>
 </head>
 <body>
@@ -188,6 +192,7 @@ $activity = array_slice($activity, 0, 6);
               <div class="card-body">
                 <div class="kpi-title">Total Clients</div>
                 <div class="kpi-value"><?= safe($kpis['total_clients']) ?></div>
+                <div><small class="text-muted">as of today</small></div>
               </div>
             </div>
           </div>
@@ -196,6 +201,7 @@ $activity = array_slice($activity, 0, 6);
               <div class="card-body">
                 <div class="kpi-title">Received (This Month)</div>
                 <div class="kpi-value"><?= safe($kpis['recv_month']) ?></div>
+                <div><small class="text-muted"><?= safe(date('M Y')) ?></small></div>
               </div>
             </div>
           </div>
@@ -204,6 +210,7 @@ $activity = array_slice($activity, 0, 6);
               <div class="card-body">
                 <div class="kpi-title">Sent (This Month)</div>
                 <div class="kpi-value"><?= safe($kpis['sent_month']) ?></div>
+                <div><small class="text-muted"><?= safe(date('M Y')) ?></small></div>
               </div>
             </div>
           </div>
@@ -212,6 +219,7 @@ $activity = array_slice($activity, 0, 6);
               <div class="card-body">
                 <div class="kpi-title">Pending Follow-ups</div>
                 <div class="kpi-value"><?= safe($kpis['pending_fu']) ?></div>
+                <div><small class="text-muted">received + sent</small></div>
               </div>
             </div>
           </div>
@@ -223,7 +231,7 @@ $activity = array_slice($activity, 0, 6);
             <div class="card chart-card">
               <div class="card-body">
                 <h5 class="card-title mb-3">Letters (Last 12 Months)</h5>
-                <canvas id="line12m" height="110" role="img" aria-label="Line chart for letters"></canvas>
+                <canvas id="line12m" role="img" aria-label="Line chart for letters"></canvas>
               </div>
             </div>
           </div>
@@ -231,7 +239,7 @@ $activity = array_slice($activity, 0, 6);
             <div class="card chart-card">
               <div class="card-body">
                 <h5 class="card-title mb-3">Follow-up Status</h5>
-                <canvas id="donutFU" height="180" role="img" aria-label="Follow-up donut"></canvas>
+                <canvas id="donutFU" role="img" aria-label="Follow-up donut"></canvas>
               </div>
             </div>
           </div>
@@ -243,7 +251,7 @@ $activity = array_slice($activity, 0, 6);
             <div class="card chart-card">
               <div class="card-body">
                 <h5 class="card-title mb-3">Top Branches (last 90 days)</h5>
-                <canvas id="barBranches" height="110" role="img" aria-label="Branches bar"></canvas>
+                <canvas id="barBranches" role="img" aria-label="Branches bar"></canvas>
               </div>
             </div>
           </div>
@@ -279,7 +287,7 @@ $activity = array_slice($activity, 0, 6);
 <script src="assets/js/hoverable-collapse.js"></script>
 <script src="assets/js/misc.js"></script>
 
-<!-- Chart.js (use CDN to avoid local redirect/404) -->
+<!-- Chart.js (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 
 <script>
@@ -291,41 +299,98 @@ $activity = array_slice($activity, 0, 6);
   const branchLbls  = <?= json_encode($topLabels) ?>;
   const branchVals  = <?= json_encode($topCounts) ?>;
 
-  // Guard: if Chart didn't load for any reason, bail gracefully
+  // graceful fallback if Chart didn't load
   if (typeof Chart !== 'undefined') {
+    const makeGrad = (ctx, top='#6f7bf7', bottom='rgba(111,123,247,0)') => {
+      const g = ctx.createLinearGradient(0, 0, 0, 240);
+      g.addColorStop(0, top);
+      g.addColorStop(1, bottom);
+      return g;
+    };
 
-    // Line
-    new Chart(document.getElementById('line12m'), {
+    // Line — Received vs Sent
+    const lineCtx = document.getElementById('line12m').getContext('2d');
+    new Chart(lineCtx, {
       type: 'line',
       data: {
         labels: months,
         datasets: [
-          { label: 'Received', data: recvSeries, borderWidth: 2, tension:.3 },
-          { label: 'Sent',     data: sentSeries, borderWidth: 2, tension:.3 }
+          {
+            label: 'Received',
+            data: recvSeries,
+            borderColor: '#4B49AC',
+            backgroundColor: makeGrad(lineCtx, 'rgba(75,73,172,0.35)', 'rgba(75,73,172,0)'),
+            fill: true,
+            tension: .35,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5
+          },
+          {
+            label: 'Sent',
+            data: sentSeries,
+            borderColor: '#00C19C',
+            backgroundColor: makeGrad(lineCtx, 'rgba(0,193,156,0.35)', 'rgba(0,193,156,0)'),
+            fill: true,
+            tension: .35,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5
+          }
         ]
       },
       options: {
-        responsive:true, maintainAspectRatio:false,
-        scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } },
-        plugins:{ legend:{ display:true } }
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 900, easing: 'easeOutQuart' },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        plugins: { legend: { display: true } }
       }
     });
 
-    // Donut
-    new Chart(document.getElementById('donutFU'), {
+    // Donut — Follow-up status
+    const donutCtx = document.getElementById('donutFU').getContext('2d');
+    new Chart(donutCtx, {
       type: 'doughnut',
-      data: { labels:['Pending','Completed'], datasets:[{ data: fuData }] },
-      options:{ responsive:true, cutout:'65%', plugins:{ legend:{ position:'bottom' } } }
+      data: {
+        labels: ['Pending', 'Completed'],
+        datasets: [{
+          data: fuData,
+          backgroundColor: ['#FF7A7A', '#00C19C']
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '65%',
+        animation: { duration: 800 },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: { callbacks: { label: c => `${c.label}: ${c.formattedValue}` } }
+        }
+      }
     });
 
-    // Horizontal bar (branches)
-    new Chart(document.getElementById('barBranches'), {
-      type:'bar',
-      data:{ labels: branchLbls, datasets:[{ label:'Letters', data: branchVals, borderWidth:1 }] },
-      options:{
-        indexAxis:'y', responsive:true, maintainAspectRatio:false,
-        scales:{ x:{ beginAtZero:true, ticks:{ precision:0 } } },
-        plugins:{ legend:{ display:false } }
+    // Horizontal bar — Top branches
+    const barCtx = document.getElementById('barBranches').getContext('2d');
+    new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: branchLbls,
+        datasets: [{
+          label: 'Letters',
+          data: branchVals,
+          backgroundColor: '#6f7bf7',
+          borderRadius: 6,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 900 },
+        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
+        plugins: { legend: { display: false } }
       }
     });
   }
