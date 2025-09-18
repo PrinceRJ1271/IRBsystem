@@ -237,7 +237,6 @@ if ($res = $conn->query("SELECT 'Received' AS typ, letter_received_id AS id, rec
 if ($res = $conn->query("SELECT 'Sent' AS typ, letter_sent_id AS id, sent_date AS d FROM letters_sent ORDER BY sent_date DESC LIMIT 5")) {
   while ($row = $res->fetch_assoc()){ $activity[] = ['type'=>'Sent','id'=>$row['id'],'date'=>$row['d']]; }
 }
-// Use old-school anonymous function for PHP < 7.4
 usort($activity, function($a,$b){ return strcmp($b['date'],$a['date']); });
 $activity = array_slice($activity, 0, 6);
 ?>
@@ -263,8 +262,12 @@ $activity = array_slice($activity, 0, 6);
     .chart-card{border-radius:1rem; box-shadow:0 4px 12px rgba(0,0,0,.06);}
     .list-activity li{display:flex; justify-content:space-between; padding:.5rem 0; border-bottom:1px dashed #eee;}
     .list-activity li:last-child{border-bottom:none;}
-    .chart-card canvas{min-height:260px;}
-    .pill{background:#f1f5ff; color:#4B49AC; border-radius:999px; padding:2px 8px; font-size:.75rem;}
+    /* FIX: lock each chart to a predictable height */
+    .chart-wrap { position:relative; width:100%; }
+    .chart-wrap.line   { height:320px; }
+    .chart-wrap.donut  { height:280px; }
+    .chart-wrap.bar    { height:320px; }
+    .chart-wrap canvas { width:100% !important; height:100% !important; display:block; }
   </style>
 </head>
 <body>
@@ -284,7 +287,9 @@ $activity = array_slice($activity, 0, 6);
               <h4 class="page-title">Welcome back</h4>
               <p class="text-muted mb-0">Here’s a quick overview of letters activity and follow-ups.</p>
             </div>
-            <div class="pill">Deliveries Today: <strong><?= safe($kpis['deliveries_today']) ?></strong></div>
+            <div class="pill" style="background:#f1f5ff; color:#4B49AC; border-radius:999px; padding:2px 8px; font-size:.75rem;">
+              Deliveries Today: <strong><?= safe($kpis['deliveries_today']) ?></strong>
+            </div>
           </div>
         </div>
 
@@ -358,7 +363,7 @@ $activity = array_slice($activity, 0, 6);
             <div class="card chart-card">
               <div class="card-body">
                 <h5 class="card-title mb-3">Letters (Last 12 Months)</h5>
-                <canvas id="line12m" role="img" aria-label="Line chart for letters"></canvas>
+                <div class="chart-wrap line"><canvas id="line12m" role="img" aria-label="Line chart for letters"></canvas></div>
               </div>
             </div>
           </div>
@@ -366,7 +371,7 @@ $activity = array_slice($activity, 0, 6);
             <div class="card chart-card">
               <div class="card-body">
                 <h5 class="card-title mb-3">Follow-up Status</h5>
-                <canvas id="donutFU" role="img" aria-label="Follow-up donut"></canvas>
+                <div class="chart-wrap donut"><canvas id="donutFU" role="img" aria-label="Follow-up donut"></canvas></div>
               </div>
             </div>
           </div>
@@ -378,7 +383,7 @@ $activity = array_slice($activity, 0, 6);
             <div class="card chart-card">
               <div class="card-body">
                 <h5 class="card-title mb-3">Top Branches (last 90 days)</h5>
-                <canvas id="barBranches" role="img" aria-label="Branches bar"></canvas>
+                <div class="chart-wrap bar"><canvas id="barBranches" role="img" aria-label="Branches bar"></canvas></div>
               </div>
             </div>
           </div>
@@ -422,7 +427,7 @@ $activity = array_slice($activity, 0, 6);
   const months      = <?= json_encode($months) ?>;
   const recvSeries  = <?= json_encode($recvSeries) ?>;
   const sentSeries  = <?= json_encode($sentSeries) ?>;
-  const fuData      = <?= json_encode([$kpis['pending_fu'], max(0, ($kpis['recv_month'] + $kpis['sent_month']) - $kpis['pending_fu'])]) ?>;
+  const fuData      = <?= json_encode([$kpis['pending_fu'], Math.max(0, ($kpis['recv_month'] + $kpis['sent_month']) - $kpis['pending_fu'])]) ?>;
   const branchLbls  = <?= json_encode($topLabels) ?>;
   const branchVals  = <?= json_encode($topCounts) ?>;
 
@@ -467,7 +472,8 @@ $activity = array_slice($activity, 0, 6);
         ]
       },
       options: {
-        responsive: true, maintainAspectRatio: false,
+        responsive: true,
+        maintainAspectRatio: false,
         animation: { duration: 900, easing: 'easeOutQuart' },
         scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
         plugins: { legend: { display: true } }
@@ -478,8 +484,8 @@ $activity = array_slice($activity, 0, 6);
     const donutCtx = document.getElementById('donutFU').getContext('2d');
     new Chart(donutCtx, {
       type: 'doughnut',
-      data: { labels:['Pending','Completed-ish'], datasets:[{ data: fuData, backgroundColor: ['#FF7A7A','#00C19C'] }] },
-      options:{ responsive:true, cutout:'65%', animation:{duration:800}, plugins:{ legend:{ position:'bottom' } } }
+      data: { labels:['Pending','Completed-ish'], datasets:[{ data: <?= json_encode([$kpis['pending_fu'], max(0, ($kpis['recv_month'] + $kpis['sent_month']) - $kpis['pending_fu'])]) ?>, backgroundColor: ['#FF7A7A','#00C19C'] }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'65%', animation:{duration:800}, plugins:{ legend:{ position:'bottom' } } }
     });
 
     // Horizontal bar — Top branches
@@ -488,8 +494,12 @@ $activity = array_slice($activity, 0, 6);
       type:'bar',
       data:{ labels: branchLbls, datasets:[{ label:'Letters', data: branchVals, backgroundColor:'#6f7bf7', borderRadius:6, borderSkipped:false }] },
       options:{
-        indexAxis:'y', responsive:true, maintainAspectRatio:false, animation:{duration:900},
-        scales:{ x:{ beginAtZero:true, ticks:{ precision:0 } } }, plugins:{ legend:{ display:false } }
+        indexAxis:'y',
+        responsive:true,
+        maintainAspectRatio:false,
+        animation:{duration:900},
+        scales:{ x:{ beginAtZero:true, ticks:{ precision:0 } }, y:{ ticks:{ autoSkip:false, maxTicksLimit:6 } } },
+        plugins:{ legend:{ display:false } }
       }
     });
 
@@ -512,33 +522,13 @@ $activity = array_slice($activity, 0, 6);
     });
 
     // Received spark
-    (()=>{
-      const c = document.getElementById('spRecv'); if(!c) return;
-      const gx = c.getContext('2d');
-      new Chart(c, sparkOpts(gx, spRecv, '#4B49AC'));
-    })();
-
+    (()=>{ const c=document.getElementById('spRecv'); if(!c) return; const gx=c.getContext('2d'); new Chart(c, sparkOpts(gx, spRecv, '#4B49AC')); })();
     // Sent spark
-    (()=>{
-      const c = document.getElementById('spSent'); if(!c) return;
-      const gx = c.getContext('2d');
-      new Chart(c, sparkOpts(gx, spSent, '#00C19C'));
-    })();
-
+    (()=>{ const c=document.getElementById('spSent'); if(!c) return; const gx=c.getContext('2d'); new Chart(c, sparkOpts(gx, spSent, '#00C19C')); })();
     // Pending spark
-    (()=>{
-      const c = document.getElementById('spPend'); if(!c) return;
-      const gx = c.getContext('2d');
-      new Chart(c, sparkOpts(gx, spPend, '#FF7A7A'));
-    })();
-
+    (()=>{ const c=document.getElementById('spPend'); if(!c) return; const gx=c.getContext('2d'); new Chart(c, sparkOpts(gx, spPend, '#FF7A7A')); })();
     // Clients spark (only if we have created_at)
-    (()=>{
-      if(!hasClientCreated) return;
-      const c = document.getElementById('spClients'); if(!c) return;
-      const gx = c.getContext('2d');
-      new Chart(c, sparkOpts(gx, spClients, '#6f7bf7'));
-    })();
+    (()=>{ if(!<?= json_encode($hasClientCreated) ?>) return; const c=document.getElementById('spClients'); if(!c) return; const gx=c.getContext('2d'); new Chart(c, sparkOpts(gx, <?= json_encode($clients6) ?>, '#6f7bf7')); })();
   }
 </script>
 </body>
