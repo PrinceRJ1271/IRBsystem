@@ -76,7 +76,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <input type="text" name="company_name" class="form-control" required>
                       </div>
                       <div class="col-md-6 form-group">
-                        <label>PIC Name</label>
+                        <label>Person-In-Charge Name</label>
                         <input type="text" name="pic_name" class="form-control" required>
                       </div>
 
@@ -85,7 +85,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <input type="text" name="company_phone" class="form-control">
                       </div>
                       <div class="col-md-6 form-group">
-                        <label>PIC Phone</label>
+                        <label>Person-In-Charge Phone</label>
                         <input type="text" name="pic_phone" class="form-control">
                       </div>
 
@@ -94,7 +94,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <input type="text" name="street" class="form-control">
                       </div>
                       <div class="col-md-6 form-group">
-                        <label>PIC Email</label>
+                        <label>Person-In-Charge Email</label>
                         <input type="email" name="pic_email" class="form-control" required>
                       </div>
                     
