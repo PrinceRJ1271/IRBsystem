@@ -135,7 +135,8 @@ Roles:
       <li class="nav-divider"></li>
     <?php endif; ?>
 
-    <?php if ($isDev || $isMgr || $isAdmin): ?>
+    <?php if ($isDev || $isAdmin): ?>
+      <!-- Delivery (Developer & Admin only) -->
       <li class="nav-item nav-category">DELIVERY</li>
       <li class="nav-item">
         <a class="nav-link" href="/forms/letter_delivery_form.php">
@@ -165,6 +166,9 @@ Roles:
         <span class="menu-title">Quick Search</span>
       </a>
     </li>
+
+    <!-- Divider before logout -->
+    <li class="nav-divider"></li>
 
     <!-- Logout (all roles) -->
     <li class="nav-item">
