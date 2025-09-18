@@ -1,5 +1,5 @@
 <?php
-// dashboard.php – StarAdmin2 dashboard with KPI sparklines & deltas
+// dashboard.php – StarAdmin2 dashboard with KPI sparklines & deltas (PHP 7.0+ compatible)
 session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/auth.php';
@@ -14,16 +14,16 @@ $isMgr    = ($level_id === 2);
 $isSenior = ($level_id === 3);
 $isAdmin  = ($level_id === 4);
 
-// Helper safe
+// Helpers
 function safe($v){ return htmlspecialchars((string)$v ?? '', ENT_QUOTES, 'UTF-8'); }
 function pct_delta($now, $prev){
   if ($prev == 0) return $now > 0 ? 100 : 0;
-  return round((($now - $prev) / $prev) * 100);
+  return (int)round((($now - $prev) / $prev) * 100);
 }
 
 // ---------- Dates ----------
-$today        = date('Y-m-d');
-$monthStart   = date('Y-m-01');
+$today          = date('Y-m-d');
+$monthStart     = date('Y-m-01');
 $prevMonthStart = date('Y-m-01', strtotime('-1 month'));
 $prevMonthEnd   = $monthStart; // exclusive
 
@@ -98,7 +98,10 @@ if ($conn->query("SHOW TABLES LIKE 'letters_delivered'")->num_rows > 0) {
 
 // ---------- Sparkline series (last 6 months) ----------
 $miniMonths = []; $recv6 = []; $sent6 = []; $pend6 = []; $clients6 = []; $clients_this_month = 0; $clients_prev = 0;
+
 $hasClientCreated = $conn->query("SHOW COLUMNS FROM clients LIKE 'created_at'")->num_rows > 0;
+$hasRecFoCreated  = $conn->query("SHOW COLUMNS FROM letters_received_followup LIKE 'created_at'")->num_rows > 0;
+$hasSentFoCreated = $conn->query("SHOW COLUMNS FROM letters_sent_followup LIKE 'created_at'")->num_rows > 0;
 
 for ($i = 5; $i >= 0; $i--) {
   $ts = strtotime("-$i months");
@@ -123,19 +126,24 @@ for ($i = 5; $i >= 0; $i--) {
     $stmt->close();
   } else { $sent6[] = 0; }
 
-  // pending snapshot by creation month of follow-ups (best available proxy)
-  if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_received_followup WHERE LOWER(TRIM(followup_status))='pending' AND YEAR(created_at)=? AND MONTH(created_at)=?")) {
-    $stmt->bind_param("ii", $y, $m);
-    $stmt->execute();
-    $p1 = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
-    $stmt->close();
-  } else { $p1 = 0; }
-  if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_sent_followup WHERE LOWER(TRIM(followup_status))='pending' AND YEAR(created_at)=? AND MONTH(created_at)=?")) {
-    $stmt->bind_param("ii", $y, $m);
-    $stmt->execute();
-    $p2 = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
-    $stmt->close();
-  } else { $p2 = 0; }
+  // pending snapshot (if created_at exists on followup tables)
+  $p1 = 0; $p2 = 0;
+  if ($hasRecFoCreated) {
+    if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_received_followup WHERE LOWER(TRIM(followup_status))='pending' AND YEAR(created_at)=? AND MONTH(created_at)=?")) {
+      $stmt->bind_param("ii", $y, $m);
+      $stmt->execute();
+      $p1 = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+      $stmt->close();
+    }
+  }
+  if ($hasSentFoCreated) {
+    if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_sent_followup WHERE LOWER(TRIM(followup_status))='pending' AND YEAR(created_at)=? AND MONTH(created_at)=?")) {
+      $stmt->bind_param("ii", $y, $m);
+      $stmt->execute();
+      $p2 = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+      $stmt->close();
+    }
+  }
   $pend6[] = $p1 + $p2;
 
   // clients (only if clients.created_at exists)
@@ -147,17 +155,16 @@ for ($i = 5; $i >= 0; $i--) {
       $stmt->close();
     } else { $clients6[] = 0; }
   } else {
-    $clients6[] = 0; // safe fallback
+    $clients6[] = 0;
   }
 }
 
 // deltas for sparklines
-$pend_prev = count($pend6) >= 2 ? $pend6[count($pend6)-2] : 0;
-$pend_now  = count($pend6) >= 1 ? $pend6[count($pend6)-1] : 0;
+$pend_prev  = count($pend6) >= 2 ? $pend6[count($pend6)-2] : 0;
+$pend_now   = count($pend6) >= 1 ? $pend6[count($pend6)-1] : 0;
 $pend_delta = pct_delta($pend_now, $pend_prev);
 
 if ($hasClientCreated) {
-  // this month vs previous month new clients
   if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM clients WHERE created_at >= ?")) {
     $stmt->bind_param("s", $monthStart);
     $stmt->execute();
@@ -230,7 +237,8 @@ if ($res = $conn->query("SELECT 'Received' AS typ, letter_received_id AS id, rec
 if ($res = $conn->query("SELECT 'Sent' AS typ, letter_sent_id AS id, sent_date AS d FROM letters_sent ORDER BY sent_date DESC LIMIT 5")) {
   while ($row = $res->fetch_assoc()){ $activity[] = ['type'=>'Sent','id'=>$row['id'],'date'=>$row['d']]; }
 }
-usort($activity, fn($a,$b)=>strcmp($b['date'],$a['date']));
+// Use old-school anonymous function for PHP < 7.4
+usort($activity, function($a,$b){ return strcmp($b['date'],$a['date']); });
 $activity = array_slice($activity, 0, 6);
 ?>
 <!DOCTYPE html>
@@ -282,7 +290,7 @@ $activity = array_slice($activity, 0, 6);
 
         <!-- KPIs -->
         <div class="row">
-          <!-- Total Clients (with optional new-clients delta if available) -->
+          <!-- Total Clients -->
           <div class="col-md-3 col-sm-6 mb-4">
             <div class="card kpi-card">
               <div class="card-body">
@@ -414,9 +422,7 @@ $activity = array_slice($activity, 0, 6);
   const months      = <?= json_encode($months) ?>;
   const recvSeries  = <?= json_encode($recvSeries) ?>;
   const sentSeries  = <?= json_encode($sentSeries) ?>;
-  const fuData      = <?= json_encode([$kpis['pending_fu'] - 0,  // pending now
-                                       max(0, ($kpis['recv_month'] + $kpis['sent_month']) - $kpis['pending_fu']) // rough completed share (visual only)
-                                      ]) ?>;
+  const fuData      = <?= json_encode([$kpis['pending_fu'], max(0, ($kpis['recv_month'] + $kpis['sent_month']) - $kpis['pending_fu'])]) ?>;
   const branchLbls  = <?= json_encode($topLabels) ?>;
   const branchVals  = <?= json_encode($topCounts) ?>;
 
@@ -428,7 +434,8 @@ $activity = array_slice($activity, 0, 6);
   const hasClientCreated = <?= json_encode($hasClientCreated) ?>;
 
   if (typeof Chart !== 'undefined') {
-    const makeGrad = (ctx, top='#6f7bf7', bottom='rgba(111,123,247,0)') => {
+    // Simple gradient helper for area fills
+    const makeGrad = (ctx, top, bottom) => {
       const g = ctx.createLinearGradient(0, 0, 0, 60);
       g.addColorStop(0, top);
       g.addColorStop(1, bottom);
@@ -447,14 +454,14 @@ $activity = array_slice($activity, 0, 6);
             label: 'Received',
             data: recvSeries,
             borderColor: '#4B49AC',
-            backgroundColor: (()=>{const c=lineCtx.canvas;return makeGrad(lineCtx,'rgba(75,73,172,0.35)','rgba(75,73,172,0)')})(),
+            backgroundColor: makeGrad(lineCtx, 'rgba(75,73,172,0.35)', 'rgba(75,73,172,0)'),
             fill: true, tension: .35, borderWidth: 2, pointRadius: 3, pointHoverRadius: 5
           },
           {
             label: 'Sent',
             data: sentSeries,
             borderColor: '#00C19C',
-            backgroundColor: (()=>{const c=lineCtx.canvas;return makeGrad(lineCtx,'rgba(0,193,156,0.35)','rgba(0,193,156,0)')})(),
+            backgroundColor: makeGrad(lineCtx, 'rgba(0,193,156,0.35)', 'rgba(0,193,156,0)'),
             fill: true, tension: .35, borderWidth: 2, pointRadius: 3, pointHoverRadius: 5
           }
         ]
@@ -467,7 +474,7 @@ $activity = array_slice($activity, 0, 6);
       }
     });
 
-    // Donut — Follow-up status (visual mix)
+    // Donut — Follow-up status (visual)
     const donutCtx = document.getElementById('donutFU').getContext('2d');
     new Chart(donutCtx, {
       type: 'doughnut',
@@ -487,12 +494,12 @@ $activity = array_slice($activity, 0, 6);
     });
 
     // ===== KPI Sparklines =====
-    const sparkOpts = (ctx, color='#4B49AC') => ({
+    const sparkOpts = (gx, series, color) => ({
       type:'line',
       data:{ labels: miniMonths, datasets:[{
-        data: ctx.series,
+        data: series,
         borderColor: color,
-        backgroundColor: makeGrad(ctx.gx, color.replace('1)','0.25)').replace('rgb','rgba'), 'rgba(0,0,0,0)'),
+        backgroundColor: makeGrad(gx, color, 'rgba(0,0,0,0)'),
         borderWidth:2, tension:.35, pointRadius:0, fill:true
       }]},
       options:{
@@ -508,26 +515,29 @@ $activity = array_slice($activity, 0, 6);
     (()=>{
       const c = document.getElementById('spRecv'); if(!c) return;
       const gx = c.getContext('2d');
-      new Chart(c, sparkOpts({gx,series:spRecv}, '#4B49AC'));
+      new Chart(c, sparkOpts(gx, spRecv, '#4B49AC'));
     })();
+
     // Sent spark
     (()=>{
       const c = document.getElementById('spSent'); if(!c) return;
       const gx = c.getContext('2d');
-      new Chart(c, sparkOpts({gx,series:spSent}, '#00C19C'));
+      new Chart(c, sparkOpts(gx, spSent, '#00C19C'));
     })();
+
     // Pending spark
     (()=>{
       const c = document.getElementById('spPend'); if(!c) return;
       const gx = c.getContext('2d');
-      new Chart(c, sparkOpts({gx,series:spPend}, '#FF7A7A'));
+      new Chart(c, sparkOpts(gx, spPend, '#FF7A7A'));
     })();
+
     // Clients spark (only if we have created_at)
     (()=>{
       if(!hasClientCreated) return;
       const c = document.getElementById('spClients'); if(!c) return;
       const gx = c.getContext('2d');
-      new Chart(c, sparkOpts({gx,series:spClients}, '#6f7bf7'));
+      new Chart(c, sparkOpts(gx, spClients, '#6f7bf7'));
     })();
   }
 </script>
