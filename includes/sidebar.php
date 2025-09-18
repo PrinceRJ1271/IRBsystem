@@ -166,3 +166,13 @@ $isAdmin  = ((int)$level_id === 4);
 
   </ul>
 </nav>
+
+<style>
+  /* Neutralize StarAdmin’s “active” sidebar style */
+  .sidebar .nav .nav-item .nav-link.active {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: inherit !important;
+    font-weight: inherit !important;
+  }
+</style>
