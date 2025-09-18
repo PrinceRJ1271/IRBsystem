@@ -7,8 +7,7 @@ require_once __DIR__ . '/includes/auth.php';
 // Allow ONLY Developer (1)
 check_access([1]);
 
-$success = '';
-$error   = '';
+$error = "";
 
 /** Helper: escape text safely */
 function safe($v) {
@@ -16,43 +15,41 @@ function safe($v) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Collect inputs
-    $username    = trim($_POST['username'] ?? '');
-    $email       = trim($_POST['user_email'] ?? '');
-    $phone       = trim($_POST['user_phonenumber'] ?? '');
-    $level_id    = (int)($_POST['level_id'] ?? 0);
-    $password    = $_POST['password'] ?? '';
-    $password2   = $_POST['confirm_password'] ?? '';
+    $username  = trim($_POST['username'] ?? '');
+    $password  = $_POST['password'] ?? '';
+    $password2 = $_POST['confirm_password'] ?? '';
+    $level_id  = (int)($_POST['level_id'] ?? 0);
 
-    // Basic validation
+    // Optional fields
+    $email = trim($_POST['user_email'] ?? '');
+    $phone = trim($_POST['user_phonenumber'] ?? '');
+
     if ($username === '') {
-        $error = 'Please enter a username.';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = 'Please enter a valid email address.';
-    } elseif ($level_id < 1 || $level_id > 4) {
-        $error = 'Please select a valid role.';
+        $error = "Please enter a username.";
     } elseif ($password === '' || strlen($password) < 6) {
-        $error = 'Please enter a password with at least 6 characters.';
+        $error = "Please enter a password with at least 6 characters.";
     } elseif ($password !== $password2) {
-        $error = 'Passwords do not match.';
+        $error = "Passwords do not match.";
+    } elseif ($level_id < 1 || $level_id > 4) {
+        $error = "Please select a valid role.";
     } else {
-        // Default profile pic (if none uploaded)
-        $profile_path = 'assets/images/default.png';
+        // Default profile pic
+        $profile_path = "assets/images/default.png";
 
-        // Optional profile image upload
+        // If file uploaded
         if (!empty($_FILES['profile_pic']['name'])) {
             $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
             $max_file_size = 5 * 1024 * 1024;
             $file_type     = $_FILES['profile_pic']['type'];
             $file_size     = $_FILES['profile_pic']['size'];
             $tmp_name      = $_FILES['profile_pic']['tmp_name'];
-            $filename      = time() . '_' . basename($_FILES['profile_pic']['name']);
-            $upload_dir    = __DIR__ . '/assets/images/uploads/';
+            $filename      = time() . "_" . basename($_FILES['profile_pic']['name']);
+            $upload_dir    = __DIR__ . "/assets/images/uploads/";
             if (!is_dir($upload_dir)) {
                 @mkdir($upload_dir, 0775, true);
             }
-            $upload_path   = $upload_dir . $filename;
-            $db_rel_path   = 'assets/images/uploads/' . $filename; // what we store in DB
+            $upload_path = $upload_dir . $filename;
+            $db_rel_path = "assets/images/uploads/" . $filename;
 
             if (!in_array($file_type, $allowed_types)) {
                 $error = "❌ Only JPG, PNG, or GIF images are allowed.";
@@ -65,38 +62,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Only proceed if no upload/validation error
         if (empty($error)) {
-            // Hash password; store in `password` column (NOT user_password)
             $hashed  = password_hash($password, PASSWORD_DEFAULT);
-            // Generate custom user_id like your old code
             $user_id = uniqid('usr_');
 
-            // Check duplicates (email OR username)
-            $dup = $conn->prepare("SELECT 1 FROM users WHERE user_email = ? OR username = ? LIMIT 1");
-            $dup->bind_param("ss", $email, $username);
-            $dup->execute();
-            $dup->store_result();
-
-            if ($dup->num_rows > 0) {
-                $error = 'An account with that email or username already exists.';
-            } else {
-                // Insert new user (explicit columns incl. user_id + profile_pic)
+            try {
                 $stmt = $conn->prepare("
-                    INSERT INTO users (user_id, username, user_email, user_phonenumber, profile_pic, password, level_id)
+                    INSERT INTO users (user_id, username, password, level_id, user_email, user_phonenumber, profile_pic)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 ");
-                $stmt->bind_param("ssssssi", $user_id, $username, $email, $phone, $profile_path, $hashed, $level_id);
+                $stmt->bind_param("sssisss", $user_id, $username, $hashed, $level_id, $email, $phone, $profile_path);
+                $stmt->execute();
 
-                if ($stmt->execute()) {
-                    // Redirect to login like your original behavior
-                    header("Location: login.php");
-                    exit;
-                } else {
-                    $error = '❌ Failed to register user. ' . safe($stmt->error);
-                }
+                header("Location: login.php");
+                exit();
+            } catch (mysqli_sql_exception $e) {
+                $error = "❌ Registration failed: " . $e->getMessage();
             }
-            $dup->close();
         }
     }
 }
@@ -107,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta charset="UTF-8" />
   <title>Register User - IRB System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Star Admin / Vendors / Theme CSS (same as forms pages) -->
+  <!-- Star Admin / Vendors / Theme CSS -->
   <link rel="stylesheet" href="assets/vendors/mdi/css/materialdesignicons.min.css">
   <link rel="stylesheet" href="assets/vendors/css/vendor.bundle.base.css">
   <link rel="stylesheet" href="assets/css/style.css">
@@ -143,28 +125,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                   <form method="post" enctype="multipart/form-data" autocomplete="off" class="pt-2">
                     <div class="form-group">
-                      <label for="username">Username</label>
+                      <label for="username">Username *</label>
                       <input type="text" name="username" id="username" class="form-control"
                              placeholder="Enter username" required
                              value="<?= safe($_POST['username'] ?? '') ?>">
                     </div>
 
                     <div class="form-group">
-                      <label for="user_email">Email</label>
+                      <label for="user_email">Email (optional)</label>
                       <input type="email" name="user_email" id="user_email" class="form-control"
-                             placeholder="Enter email" required
+                             placeholder="Enter email"
                              value="<?= safe($_POST['user_email'] ?? '') ?>">
                     </div>
 
                     <div class="form-group">
-                      <label for="user_phonenumber">Phone Number</label>
+                      <label for="user_phonenumber">Phone Number (optional)</label>
                       <input type="text" name="user_phonenumber" id="user_phonenumber" class="form-control"
                              placeholder="Enter phone number"
                              value="<?= safe($_POST['user_phonenumber'] ?? '') ?>">
                     </div>
 
                     <div class="form-group">
-                      <label for="level_id">Role</label>
+                      <label for="level_id">Role *</label>
                       <select name="level_id" id="level_id" class="form-control" required>
                         <option value="">-- Select Role --</option>
                         <option value="1" <?= (($_POST['level_id'] ?? '') == '1') ? 'selected' : '' ?>>Developer</option>
@@ -175,12 +157,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
 
                     <div class="form-group">
-                      <label for="password">Password</label>
+                      <label for="password">Password *</label>
                       <input type="password" name="password" id="password" class="form-control" placeholder="Enter password" required>
                     </div>
 
                     <div class="form-group">
-                      <label for="confirm_password">Confirm Password</label>
+                      <label for="confirm_password">Confirm Password *</label>
                       <input type="password" name="confirm_password" id="confirm_password" class="form-control" placeholder="Re-enter password" required>
                     </div>
 
@@ -211,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
   </div>
 
-  <!-- JS bundle (same as other forms) -->
+  <!-- JS bundle -->
   <script src="assets/vendors/js/vendor.bundle.base.js"></script>
   <script src="assets/js/off-canvas.js"></script>
   <script src="assets/js/hoverable-collapse.js"></script>
