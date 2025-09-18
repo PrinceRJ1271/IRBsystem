@@ -109,6 +109,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .progress { height: 6px; border-radius: 999px; }
     .progress-bar { transition: width .25s ease; }
     .strength-text { font-size: .85rem; margin-top: .25rem; }
+
+    /* ---- Make sidebar links plain even when 'active' gets added by template JS ---- */
+    .sidebar .nav .nav-item.active > .nav-link,
+    .sidebar .nav .nav-item .nav-link.active {
+      background: transparent !important;
+      box-shadow: none !important;
+      font-weight: 400 !important;
+      border-radius: 0 !important;
+    }
+    .sidebar .nav .nav-item.active > .nav-link .menu-title,
+    .sidebar .nav .nav-item .nav-link.active .menu-title,
+    .sidebar .nav .nav-item.active > .nav-link i,
+    .sidebar .nav .nav-item .nav-link.active i {
+      color: inherit !important;
+      font-weight: 400 !important;
+    }
   </style>
 </head>
 <body>
@@ -233,6 +249,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <script src="assets/js/misc.js"></script>
 
   <script>
+    // Remove any 'active' class StarAdmin attaches so all links look plain
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.sidebar .nav .nav-item.active').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.sidebar .nav .nav-link.active').forEach(el => el.classList.remove('active'));
+    });
+
     // Bootstrap validation styling
     (() => {
       'use strict';
