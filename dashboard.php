@@ -1,5 +1,5 @@
 <?php
-// dashboard.php – StarAdmin2 dashboard (fixed Chart.js + robust queries)
+// dashboard.php – StarAdmin2 dashboard (no Quick Links)
 session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/auth.php';
@@ -21,11 +21,11 @@ function safe($v){ return htmlspecialchars((string)$v ?? '', ENT_QUOTES, 'UTF-8'
 $today = date('Y-m-d');
 $monthStart = date('Y-m-01');
 $kpis = [
-  'total_clients' => 0,
-  'recv_month'    => 0,
-  'sent_month'    => 0,
-  'pending_fu'    => 0,
-  'deliveries_today' => 0,
+  'total_clients'     => 0,
+  'recv_month'        => 0,
+  'sent_month'        => 0,
+  'pending_fu'        => 0,
+  'deliveries_today'  => 0,
 ];
 
 // Total clients
@@ -34,16 +34,20 @@ if ($res = $conn->query("SELECT COUNT(*) AS c FROM clients")) {
 }
 
 // Letters received this month
-$stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_received WHERE received_date >= ?");
-$stmt->bind_param("s", $monthStart);
-$stmt->execute();
-$kpis['recv_month'] = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_received WHERE received_date >= ?")) {
+  $stmt->bind_param("s", $monthStart);
+  $stmt->execute();
+  $kpis['recv_month'] = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+  $stmt->close();
+}
 
 // Letters sent this month
-$stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_sent WHERE sent_date >= ?");
-$stmt->bind_param("s", $monthStart);
-$stmt->execute();
-$kpis['sent_month'] = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_sent WHERE sent_date >= ?")) {
+  $stmt->bind_param("s", $monthStart);
+  $stmt->execute();
+  $kpis['sent_month'] = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+  $stmt->close();
+}
 
 // Pending follow-ups (received + sent)
 if ($res = $conn->query("
@@ -54,15 +58,17 @@ if ($res = $conn->query("
   $kpis['pending_fu'] = (int)($res->fetch_assoc()['c'] ?? 0);
 }
 
-// Deliveries today (only if table exists)
-if ($conn->query("SHOW TABLES LIKE 'letter_delivery'")->num_rows > 0) {
-  $stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letter_delivery WHERE DATE(delivery_date)=?");
-  $stmt->bind_param("s", $today);
-  $stmt->execute();
-  $kpis['deliveries_today'] = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+// Deliveries today (DB table is 'letters_delivered' with 'delivered_date')
+if ($conn->query("SHOW TABLES LIKE 'letters_delivered'")->num_rows > 0) {
+  if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_delivered WHERE DATE(delivered_date)=?")) {
+    $stmt->bind_param("s", $today);
+    $stmt->execute();
+    $kpis['deliveries_today'] = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+    $stmt->close();
+  }
 }
 
-// ---------- 12-month series ----------
+// ---------- 12-month series (Received vs Sent) ----------
 $months = []; $recvSeries = []; $sentSeries = [];
 for ($i = 11; $i >= 0; $i--) {
   $ts = strtotime("-$i months");
@@ -71,51 +77,59 @@ for ($i = 11; $i >= 0; $i--) {
   $m = (int)date('m', $ts);
   $months[] = $label;
 
-  $stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_received WHERE YEAR(received_date)=? AND MONTH(received_date)=?");
-  $stmt->bind_param("ii", $y, $m);
-  $stmt->execute();
-  $recvSeries[] = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+  if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_received WHERE YEAR(received_date)=? AND MONTH(received_date)=?")) {
+    $stmt->bind_param("ii", $y, $m);
+    $stmt->execute();
+    $recvSeries[] = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+    $stmt->close();
+  } else { $recvSeries[] = 0; }
 
-  $stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_sent WHERE YEAR(sent_date)=? AND MONTH(sent_date)=?");
-  $stmt->bind_param("ii", $y, $m);
-  $stmt->execute();
-  $sentSeries[] = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+  if ($stmt = $conn->prepare("SELECT COUNT(*) AS c FROM letters_sent WHERE YEAR(sent_date)=? AND MONTH(sent_date)=?")) {
+    $stmt->bind_param("ii", $y, $m);
+    $stmt->execute();
+    $sentSeries[] = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+    $stmt->close();
+  } else { $sentSeries[] = 0; }
 }
 
 // ---------- Follow-up status donut ----------
 $fu = ['pending'=>0,'completed'=>0];
-foreach (['letters_received_followup','letters_sent_followup'] as $tbl) {
-  if ($res = $conn->query("SELECT LOWER(TRIM(followup_status)) s, COUNT(*) c FROM $tbl GROUP BY s")) {
-    while ($row = $res->fetch_assoc()) {
-      $s = $row['s'];
-      $c = (int)$row['c'];
-      if ($s === 'pending') $fu['pending'] += $c; else $fu['completed'] += $c;
-    }
+if ($res = $conn->query("SELECT LOWER(TRIM(followup_status)) s, COUNT(*) c FROM letters_received_followup GROUP BY s")) {
+  while($row = $res->fetch_assoc()){
+    if ($row['s']==='pending')   $fu['pending']   += (int)$row['c'];
+    if ($row['s']==='completed') $fu['completed'] += (int)$row['c'];
+  }
+}
+if ($res = $conn->query("SELECT LOWER(TRIM(followup_status)) s, COUNT(*) c FROM letters_sent_followup GROUP BY s")) {
+  while($row = $res->fetch_assoc()){
+    if ($row['s']==='pending')   $fu['pending']   += (int)$row['c'];
+    if ($row['s']==='completed') $fu['completed'] += (int)$row['c'];
   }
 }
 
-// ---------- Branch bar ----------
+// ---------- Branch bar (top 5, last 90 days) ----------
 $topLabels = []; $topCounts = [];
 $since = date('Y-m-d', strtotime('-90 days'));
 $q = "
-  SELECT COALESCE(b.name, 'Unknown') AS branch_name, SUM(x.c) AS total_c
-  FROM (
+  SELECT b.name AS branch_name, SUM(x.c) AS total_c FROM (
     SELECT branch_id, COUNT(*) c FROM letters_received WHERE received_date >= ? GROUP BY branch_id
     UNION ALL
-    SELECT branch_id, COUNT(*) c FROM letters_sent WHERE sent_date >= ? GROUP BY branch_id
+    SELECT branch_id, COUNT(*) c FROM letters_sent     WHERE sent_date    >= ? GROUP BY branch_id
   ) x
-  LEFT JOIN irb_branches b ON b.branch_id = x.branch_id
-  GROUP BY COALESCE(b.name, 'Unknown')
+  JOIN irb_branches b ON b.branch_id = x.branch_id
+  GROUP BY b.name
   ORDER BY total_c DESC
   LIMIT 5
 ";
-$stmt = $conn->prepare($q);
-$stmt->bind_param("ss", $since, $since);
-$stmt->execute();
-$r = $stmt->get_result();
-while ($row = $r->fetch_assoc()){
-  $topLabels[] = $row['branch_name'];
-  $topCounts[] = (int)$row['total_c'];
+if ($stmt = $conn->prepare($q)) {
+  $stmt->bind_param("ss", $since, $since);
+  $stmt->execute();
+  $r = $stmt->get_result();
+  while ($row = $r->fetch_assoc()){
+    $topLabels[] = $row['branch_name'] ?: 'Unknown';
+    $topCounts[] = (int)$row['total_c'];
+  }
+  $stmt->close();
 }
 
 // ---------- Recent activity ----------
@@ -170,69 +184,86 @@ $activity = array_slice($activity, 0, 6);
         <!-- KPIs -->
         <div class="row">
           <div class="col-md-3 col-sm-6 mb-4">
-            <div class="card kpi-card"><div class="card-body">
-              <div class="kpi-title">Total Clients</div>
-              <div class="kpi-value"><?= safe($kpis['total_clients']) ?></div>
-            </div></div>
+            <div class="card kpi-card">
+              <div class="card-body">
+                <div class="kpi-title">Total Clients</div>
+                <div class="kpi-value"><?= safe($kpis['total_clients']) ?></div>
+              </div>
+            </div>
           </div>
           <div class="col-md-3 col-sm-6 mb-4">
-            <div class="card kpi-card"><div class="card-body">
-              <div class="kpi-title">Received (This Month)</div>
-              <div class="kpi-value"><?= safe($kpis['recv_month']) ?></div>
-            </div></div>
+            <div class="card kpi-card">
+              <div class="card-body">
+                <div class="kpi-title">Received (This Month)</div>
+                <div class="kpi-value"><?= safe($kpis['recv_month']) ?></div>
+              </div>
+            </div>
           </div>
           <div class="col-md-3 col-sm-6 mb-4">
-            <div class="card kpi-card"><div class="card-body">
-              <div class="kpi-title">Sent (This Month)</div>
-              <div class="kpi-value"><?= safe($kpis['sent_month']) ?></div>
-            </div></div>
+            <div class="card kpi-card">
+              <div class="card-body">
+                <div class="kpi-title">Sent (This Month)</div>
+                <div class="kpi-value"><?= safe($kpis['sent_month']) ?></div>
+              </div>
+            </div>
           </div>
           <div class="col-md-3 col-sm-6 mb-4">
-            <div class="card kpi-card"><div class="card-body">
-              <div class="kpi-title">Pending Follow-ups</div>
-              <div class="kpi-value"><?= safe($kpis['pending_fu']) ?></div>
-            </div></div>
+            <div class="card kpi-card">
+              <div class="card-body">
+                <div class="kpi-title">Pending Follow-ups</div>
+                <div class="kpi-value"><?= safe($kpis['pending_fu']) ?></div>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- Charts row -->
         <div class="row">
           <div class="col-lg-8 mb-4">
-            <div class="card chart-card"><div class="card-body">
-              <h5 class="card-title mb-3">Letters (Last 12 Months)</h5>
-              <canvas id="line12m" height="110"></canvas>
-            </div></div>
+            <div class="card chart-card">
+              <div class="card-body">
+                <h5 class="card-title mb-3">Letters (Last 12 Months)</h5>
+                <canvas id="line12m" height="110" role="img" aria-label="Line chart for letters"></canvas>
+              </div>
+            </div>
           </div>
           <div class="col-lg-4 mb-4">
-            <div class="card chart-card"><div class="card-body">
-              <h5 class="card-title mb-3">Follow-up Status</h5>
-              <canvas id="donutFU" height="180"></canvas>
-            </div></div>
+            <div class="card chart-card">
+              <div class="card-body">
+                <h5 class="card-title mb-3">Follow-up Status</h5>
+                <canvas id="donutFU" height="180" role="img" aria-label="Follow-up donut"></canvas>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- Branch chart + Recent Activity -->
         <div class="row">
           <div class="col-lg-8 mb-4">
-            <div class="card chart-card"><div class="card-body">
-              <h5 class="card-title mb-3">Top Branches (last 90 days)</h5>
-              <canvas id="barBranches" height="110"></canvas>
-            </div></div>
+            <div class="card chart-card">
+              <div class="card-body">
+                <h5 class="card-title mb-3">Top Branches (last 90 days)</h5>
+                <canvas id="barBranches" height="110" role="img" aria-label="Branches bar"></canvas>
+              </div>
+            </div>
           </div>
+
           <div class="col-lg-4 mb-4">
-            <div class="card chart-card"><div class="card-body">
-              <h5 class="card-title mb-3">Recent Activity</h5>
-              <ul class="list-unstyled list-activity mb-0">
-                <?php if(empty($activity)): ?>
-                  <li><span>No recent activity</span><span>—</span></li>
-                <?php else: foreach($activity as $a): ?>
-                  <li>
-                    <span><strong><?= safe($a['type']) ?></strong> — <?= safe($a['id']) ?></span>
-                    <span class="text-muted"><?= safe($a['date']) ?></span>
-                  </li>
-                <?php endforeach; endif; ?>
-              </ul>
-            </div></div>
+            <div class="card chart-card">
+              <div class="card-body">
+                <h5 class="card-title mb-3">Recent Activity</h5>
+                <ul class="list-unstyled list-activity mb-0">
+                  <?php if(empty($activity)): ?>
+                    <li><span>No recent activity</span><span>—</span></li>
+                  <?php else: foreach($activity as $a): ?>
+                    <li>
+                      <span><strong><?= safe($a['type']) ?></strong> — <?= safe($a['id']) ?></span>
+                      <span class="text-muted"><?= safe($a['date']) ?></span>
+                    </li>
+                  <?php endforeach; endif; ?>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -248,15 +279,8 @@ $activity = array_slice($activity, 0, 6);
 <script src="assets/js/hoverable-collapse.js"></script>
 <script src="assets/js/misc.js"></script>
 
-<!-- Chart.js: try local, fallback to CDN -->
-<script src="assets/vendors/chart.js/Chart.min.js"></script>
-<script>
-if (typeof Chart === 'undefined') {
-  var s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-  document.head.appendChild(s);
-}
-</script>
+<!-- Chart.js (use CDN to avoid local redirect/404) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 
 <script>
   // Chart data from PHP
@@ -267,36 +291,44 @@ if (typeof Chart === 'undefined') {
   const branchLbls  = <?= json_encode($topLabels) ?>;
   const branchVals  = <?= json_encode($topCounts) ?>;
 
-  // Line
-  new Chart(document.getElementById('line12m'), {
-    type: 'line',
-    data: { labels: months,
-      datasets: [
-        { label: 'Received', data: recvSeries, borderWidth: 2, tension:.3 },
-        { label: 'Sent',     data: sentSeries, borderWidth: 2, tension:.3 }
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } }
-    }
-  });
+  // Guard: if Chart didn't load for any reason, bail gracefully
+  if (typeof Chart !== 'undefined') {
 
-  // Donut
-  new Chart(document.getElementById('donutFU'), {
-    type: 'doughnut',
-    data: { labels:['Pending','Completed'], datasets:[{ data: fuData }] },
-    options:{ responsive:true, cutout:'65%', plugins:{ legend:{ position:'bottom' } } }
-  });
+    // Line
+    new Chart(document.getElementById('line12m'), {
+      type: 'line',
+      data: {
+        labels: months,
+        datasets: [
+          { label: 'Received', data: recvSeries, borderWidth: 2, tension:.3 },
+          { label: 'Sent',     data: sentSeries, borderWidth: 2, tension:.3 }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } },
+        plugins:{ legend:{ display:true } }
+      }
+    });
 
-  // Horizontal bar
-  new Chart(document.getElementById('barBranches'), {
-    type:'bar',
-    data:{ labels: branchLbls, datasets:[{ label:'Letters', data: branchVals, borderWidth:1 }] },
-    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      scales:{ x:{ beginAtZero:true, ticks:{ precision:0 } } },
-      plugins:{ legend:{ display:false } } }
-  });
+    // Donut
+    new Chart(document.getElementById('donutFU'), {
+      type: 'doughnut',
+      data: { labels:['Pending','Completed'], datasets:[{ data: fuData }] },
+      options:{ responsive:true, cutout:'65%', plugins:{ legend:{ position:'bottom' } } }
+    });
+
+    // Horizontal bar (branches)
+    new Chart(document.getElementById('barBranches'), {
+      type:'bar',
+      data:{ labels: branchLbls, datasets:[{ label:'Letters', data: branchVals, borderWidth:1 }] },
+      options:{
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        scales:{ x:{ beginAtZero:true, ticks:{ precision:0 } } },
+        plugins:{ legend:{ display:false } }
+      }
+    });
+  }
 </script>
 </body>
 </html>
