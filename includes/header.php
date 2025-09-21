@@ -2,7 +2,7 @@
 if (!isset($_SESSION)) session_start();
 ?>
 <style>
-  /* --- keep existing look --- */
+  /* --- existing look --- */
   .nav-profile-img img {
     width: 40px;
     height: 40px;
@@ -33,49 +33,67 @@ if (!isset($_SESSION)) session_start();
   }
   .logout-link i { margin-right: 4px; }
 
+  /* Make the logo responsive so it scales & stays aligned with the search */
   .company-logo {
-    height: 55px;
+    height: clamp(32px, 5vw, 55px);   /* scales smoothly with zoom/width */
     width: auto;
-    margin-right: 1rem;
-    padding-right: 6rem; /* existing spacing */
+    margin-right: clamp(.5rem, 2vw, 1rem);
+    padding-right: clamp(0rem, 3vw, 2rem); /* collapses as space gets tight */
   }
 
-  /* -------- FIXES FOR ZOOM / WRAP -------- */
-  /* Let the header grow vertically instead of clipping when zoomed */
+  /* -------- RESPONSIVE WRAP / ALIGNMENT FIXES -------- */
+
+  /* Let the whole header grow and wrap instead of forcing overflow */
   nav.fixed-top {
-    height: auto !important;     /* override inline 80px */
-    min-height: 80px;            /* keep original minimum height */
+    height: auto !important;          /* override inline 80px */
+    min-height: 80px;
     z-index: 1030;
   }
+  /* Allow items to wrap onto a second line when needed */
+  nav.navbar { flex-wrap: wrap; }
 
-  /* Allow the right-side cluster to wrap neatly on a new line */
+  /* Left cluster (logo) */
+  .navbar > .d-flex.align-items-center:first-child {
+    flex: 0 0 auto;                   /* keep logo natural width */
+    align-items: center;
+  }
+
+  /* Right cluster (search + clock + profile + logout) */
   .navbar > .d-flex.align-items-center:last-child {
-    flex: 1 1 auto;              /* let it take remaining space */
-    justify-content: flex-end;   /* keep items right-aligned */
-    gap: .75rem;                 /* consistent spacing between items */
-    flex-wrap: wrap;             /* <— key: wrap instead of overflowing */
+    flex: 1 1 700px;                  /* share the row with the logo */
+    justify-content: flex-end;
+    align-items: center;
+    gap: .75rem;
+    flex-wrap: wrap;                  /* wrap nicely under the first row */
     row-gap: .25rem;
   }
 
-  /* Make search compressible so it gives space to profile/clock first */
+  /* Make the search stay on the TOP row with the logo as space tightens */
   .search-form {
-    width: 945px;                /* baseline */
+    width: 945px;                     /* baseline width on roomy screens */
     max-width: 100%;
-    flex: 1 1 420px;             /* shrink first, then wrap */
-    min-width: 260px;            /* don’t get too tiny to tap */
+    flex: 1 1 520px;                  /* search is allowed to shrink first */
+    min-width: 240px;                 /* don’t get too tiny */
     margin-right: 1rem;
+    order: 1;                         /* search comes first in the row */
   }
-  /* When the search wraps under the logo/controls, add a little top space */
+  /* All other right-cluster items come after the search (wrap below if needed) */
+  .navbar > .d-flex.align-items-center:last-child > :not(.search-form) {
+    order: 2;
+  }
+
+  /* Cosmetic top margin only when the search actually wraps under the logo */
   .navbar .search-form.wrapped { margin-top: .25rem; }
 
-  /* Keep the top row content aligned even as it wraps */
+  /* Keep compatibility with your existing layout helpers */
   .navbar-menu-wrapper { width: 100%; }
 
+  @media (max-width: 1199.98px) {
+    .search-form { flex-basis: 440px; }
+  }
   @media (max-width: 991.98px) {
-    /* Nudge earlier wrapping on smaller widths */
     .search-form { flex-basis: 360px; }
   }
-
   @media (max-width: 767.98px) {
     .navbar-menu-wrapper {
       flex-direction: column !important;
@@ -95,7 +113,7 @@ if (!isset($_SESSION)) session_start();
       width: 100%;
       margin: 0.5rem 0;
       min-width: 0;
-      flex-basis: 100%;
+      flex-basis: 100%;               /* take full row on very small widths */
     }
   }
 </style>
