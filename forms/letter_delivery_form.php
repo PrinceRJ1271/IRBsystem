@@ -5,17 +5,54 @@ check_access([1, 4]); // Developer or Admin Staff
 
 $success = $error = "";
 
+// Fetch Letter Sent options
+$ls_options = [];
+$sql_sent = "
+  SELECT ls.letter_sent_id, c.company_name, ls.sent_date
+  FROM letters_sent ls
+  LEFT JOIN clients c ON c.client_id = ls.client_id
+  ORDER BY ls.sent_date DESC
+";
+if ($res = $conn->query($sql_sent)) {
+  while ($row = $res->fetch_assoc()) { $ls_options[] = $row; }
+}
+
+// Fetch Letter Received options
+$lr_options = [];
+$sql_recv = "
+  SELECT lr.letter_received_id, c.company_name, lr.received_date
+  FROM letters_received lr
+  LEFT JOIN clients c ON c.client_id = lr.client_id
+  ORDER BY lr.received_date DESC
+";
+if ($res = $conn->query($sql_recv)) {
+  while ($row = $res->fetch_assoc()) { $lr_options[] = $row; }
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $delivery_id = "LD" . str_pad(rand(1, 99999), 5, '0', STR_PAD_LEFT);
 
-    $stmt = $conn->prepare("INSERT INTO letters_delivered 
-        (delivery_id, letter_sent_id, collection_date, delivered_date, delivery_method,
-         tracking_number, ad_staff_id, ad_signature, status, remark)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    // letter_ref comes as "S|id" or "R|id"
+    $letter_sent_id = null;
+    $letter_received_id = null;
+    if (!empty($_POST['letter_ref']) && strpos($_POST['letter_ref'], '|') !== false) {
+        list($type, $id) = explode('|', $_POST['letter_ref'], 2);
+        if ($type === 'S') {
+            $letter_sent_id = $id;
+        } elseif ($type === 'R') {
+            $letter_received_id = $id;
+        }
+    }
 
-    $stmt->bind_param("ssssssssss",
+    $stmt = $conn->prepare("INSERT INTO letters_delivered 
+        (delivery_id, letter_sent_id, letter_received_id, collection_date, delivered_date, delivery_method,
+         tracking_number, ad_staff_id, ad_signature, status, remark)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+    $stmt->bind_param("sssssssssss",
         $delivery_id,
-        $_POST['letter_sent_id'],
+        $letter_sent_id,
+        $letter_received_id,
         $_POST['collection_date'],
         $_POST['delivered_date'],
         $_POST['delivery_method'],
@@ -83,9 +120,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                   <form method="post" class="pt-3">
                     <div class="row">
+
+                      <!-- COMBINED DROPDOWN -->
                       <div class="col-md-6 form-group">
-                        <label>Letter Sent ID</label>
-                        <input type="text" name="letter_sent_id" class="form-control" required>
+                        <label>Letter (Sent or Received)</label>
+                        <select name="letter_ref" class="form-control" required>
+                          <option value="">-- Select Letter --</option>
+                          <optgroup label="Letters Sent">
+                            <?php foreach ($ls_options as $opt): 
+                              $val = 'S|' . $opt['letter_sent_id'];
+                              $label = $opt['letter_sent_id']
+                                     . ' — ' . ($opt['company_name'] ?: 'Unknown Company')
+                                     . ' — ' . ($opt['sent_date'] ?: '');
+                              $sel = (isset($_POST['letter_ref']) && $_POST['letter_ref'] === $val) ? 'selected' : '';
+                            ?>
+                              <option value="<?= htmlspecialchars($val) ?>" <?= $sel ?>>
+                                <?= htmlspecialchars($label) ?>
+                              </option>
+                            <?php endforeach; ?>
+                          </optgroup>
+
+                          <optgroup label="Letters Received">
+                            <?php foreach ($lr_options as $opt): 
+                              $val = 'R|' . $opt['letter_received_id'];
+                              $label = $opt['letter_received_id']
+                                     . ' — ' . ($opt['company_name'] ?: 'Unknown Company')
+                                     . ' — ' . ($opt['received_date'] ?: '');
+                              $sel = (isset($_POST['letter_ref']) && $_POST['letter_ref'] === $val) ? 'selected' : '';
+                            ?>
+                              <option value="<?= htmlspecialchars($val) ?>" <?= $sel ?>>
+                                <?= htmlspecialchars($label) ?>
+                              </option>
+                            <?php endforeach; ?>
+                          </optgroup>
+                        </select>
                       </div>
 
                       <div class="col-md-6 form-group">
