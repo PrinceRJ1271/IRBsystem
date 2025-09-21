@@ -167,3 +167,97 @@ $isAdmin  = ((int)$level_id === 4);
 
   </ul>
 </nav>
+
+<!-- StarAdmin-styled floating toggle + scrim for offcanvas -->
+<button id="sidebarToggle" class="sidebar-toggle btn btn-primary shadow-sm" aria-label="Toggle sidebar">
+  <i class="mdi mdi-menu"></i>
+</button>
+<div id="sidebarScrim" class="sidebar-scrim"></div>
+
+<style>
+  /* ---- Offcanvas behavior (only affects small/narrow view) ---- */
+  #sidebar { transition: transform .28s cubic-bezier(.4,0,.2,1); will-change: transform; }
+  #sidebar.collapsed { transform: translateX(-100%); }
+
+  /* ---- Styled floating toggle (StarAdmin-ish) ---- */
+  .sidebar-toggle {
+    position: fixed;
+    top: 92px;               /* just below header */
+    left: 14px;
+    z-index: 1101;
+    display: none;           /* shown only when body has .sidebar-collapsed */
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border-radius: 12px;
+    background: #4B49AC;     /* StarAdmin primary tone used in your UI */
+    border: 0;
+    color: #fff;
+  }
+  .sidebar-toggle i { font-size: 22px; line-height: 42px; }
+  .sidebar-toggle:hover { filter: brightness(1.05); box-shadow: 0 6px 16px rgba(75,73,172,.25); }
+  .sidebar-toggle:active { transform: translateY(1px); }
+
+  /* Only show toggle in collapsed mode */
+  body.sidebar-collapsed .sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; }
+
+  /* ---- Scrim (clickable backdrop) ---- */
+  .sidebar-scrim {
+    position: fixed; inset: 0;
+    background: rgba(17,24,39,.35); /* soft dark */
+    backdrop-filter: blur(1px);
+    z-index: 1100;
+    opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  /* When drawer is open in narrow mode, show scrim */
+  body.drawer-open .sidebar-scrim { opacity: 1; pointer-events: auto; }
+
+  /* ---- Responsive trigger: collapse below 1200px ---- */
+  @media (max-width: 1199.98px) {
+    /* On narrow view, push content under header; sidebar will slide */
+    #sidebar { position: fixed; left: 0; top: 80px; height: calc(100% - 80px); }
+  }
+</style>
+
+<script>
+  (function () {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    const scrim = document.getElementById('sidebarScrim');
+
+    // Collapse logic when viewport gets narrow (e.g., user zooms in)
+    function applyResponsiveSidebar() {
+      if (window.innerWidth < 1200) {
+        document.body.classList.add('sidebar-collapsed');
+        sidebar.classList.add('collapsed');
+      } else {
+        document.body.classList.remove('sidebar-collapsed', 'drawer-open');
+        sidebar.classList.remove('collapsed');
+      }
+    }
+
+    // Open drawer (show sidebar temporarily) on narrow screens
+    function openDrawer() {
+      document.body.classList.add('drawer-open');
+      sidebar.classList.remove('collapsed');
+    }
+
+    // Close drawer back to collapsed state
+    function closeDrawer() {
+      sidebar.classList.add('collapsed');
+      document.body.classList.remove('drawer-open');
+    }
+
+    // Init + events
+    applyResponsiveSidebar();
+    window.addEventListener('resize', applyResponsiveSidebar);
+
+    toggleBtn.addEventListener('click', () => {
+      // If currently collapsed, open; else collapse
+      if (sidebar.classList.contains('collapsed')) openDrawer();
+      else closeDrawer();
+    });
+
+    scrim.addEventListener('click', closeDrawer);
+  })();
+</script>
