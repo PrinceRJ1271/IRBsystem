@@ -204,18 +204,23 @@ $isAdmin  = ((int)$level_id === 4);
   /* ---- Scrim (clickable backdrop) ---- */
   .sidebar-scrim {
     position: fixed; inset: 0;
-    background: rgba(17,24,39,.35); /* soft dark */
+    background: rgba(17,24,39,.35);
     backdrop-filter: blur(1px);
-    z-index: 1100;
+    z-index: 1100;           /* BELOW the sidebar */
     opacity: 0; pointer-events: none; transition: opacity .2s ease;
   }
-  /* When drawer is open in narrow mode, show scrim */
   body.drawer-open .sidebar-scrim { opacity: 1; pointer-events: auto; }
 
   /* ---- Responsive trigger: collapse below 1200px ---- */
   @media (max-width: 1199.98px) {
-    /* On narrow view, push content under header; sidebar will slide */
-    #sidebar { position: fixed; left: 0; top: 80px; height: calc(100% - 80px); }
+    #sidebar {
+      position: fixed;
+      left: 0;
+      top: 80px;
+      height: calc(100% - 80px);
+      z-index: 1102;                 /* <-- ABOVE scrim so it’s clickable */
+      box-shadow: 8px 0 22px rgba(0,0,0,.08); /* subtle drawer shadow */
+    }
   }
 </style>
 
@@ -253,7 +258,6 @@ $isAdmin  = ((int)$level_id === 4);
     window.addEventListener('resize', applyResponsiveSidebar);
 
     toggleBtn.addEventListener('click', () => {
-      // If currently collapsed, open; else collapse
       if (sidebar.classList.contains('collapsed')) openDrawer();
       else closeDrawer();
     });
