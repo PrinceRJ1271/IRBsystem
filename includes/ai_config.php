@@ -1,44 +1,55 @@
 <?php
 // includes/ai_config.php
-// Minimal config loader (no Composer dependency). Reads OPENAI_API_KEY from env or /var/www/html/.env
+// Centralized, safe loader for the OpenAI credentials.
 
-if (!isset($_SESSION)) session_start();
+function ai_env($key, $default = null) {
+  // 1) try getenv (systemd/apache)
+  $val = getenv($key);
+  if ($val !== false && $val !== '') return $val;
 
-/**
- * Very small .env parser: KEY=VALUE lines, no quotes, ignores comments.
- */
-function load_env_file($path) {
-  if (!is_readable($path)) return [];
-  $vars = [];
-  foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-    if (strpos(ltrim($line), '#') === 0) continue;
-    $pos = strpos($line, '=');
-    if ($pos === false) continue;
-    $k = trim(substr($line, 0, $pos));
-    $v = trim(substr($line, $pos + 1));
-    $vars[$k] = $v;
+  // 2) try /var/www/html/.env (your current location)
+  static $envCache = null;
+  if ($envCache === null) {
+    $envCache = [];
+    $envPathCandidates = [
+      __DIR__ . '/../.env',              // project root
+      '/var/www/html/.env',              // common prod path
+    ];
+    foreach ($envPathCandidates as $p) {
+      if (is_readable($p)) {
+        $raw = file_get_contents($p);
+        // Support KEY=value lines (no quotes required)
+        foreach (preg_split("/\\r\\n|\\r|\\n/", $raw) as $line) {
+          if (preg_match('/^\s*#/', $line) || trim($line)==='') continue;
+          if (strpos($line, '=') !== false) {
+            list($k, $v) = explode('=', $line, 2);
+            $envCache[trim($k)] = trim($v);
+          }
+        }
+        break;
+      }
+    }
   }
-  return $vars;
+  return $envCache[$key] ?? $default;
 }
 
-$ENV = array_merge(load_env_file(__DIR__ . '/../.env'), $_ENV, $_SERVER);
+function ai_config() {
+  $key = ai_env('OPENAI_API_KEY');
+  $project = ai_env('OPENAI_PROJECT_ID'); // optional
 
-define('OPENAI_API_KEY', $ENV['OPENAI_API_KEY'] ?? getenv('OPENAI_API_KEY') ?: '');
-define('OPENAI_PROJECT_ID', $ENV['OPENAI_PROJECT_ID'] ?? getenv('OPENAI_PROJECT_ID') ?: ''); // optional
-define('OPENAI_API_BASE', 'https://api.openai.com/v1');
-
-// Choose a small, fast model that’s good for chat UX
-define('OPENAI_MODEL', 'gpt-4o-mini'); // can change later without touching UI
-
-// House style/system instruction the bot will use for better answers
-define('AI_SYSTEM_PROMPT', <<<PROMPT
-You are the helpful assistant for a private IRB Letter Management System (StarAdmin2 UI).
-Be concise, accurate, and friendly. If asked about internal data, be cautious: you
-can explain how to find or compute it in the app, but you do not guess unknown facts.
-Default to brief answers with bullet points; expand only if asked.
-PROMPT);
-
-if (OPENAI_API_KEY === '') {
-  // Fail loudly in dev, silent in production if you prefer
-  error_log('OPENAI_API_KEY is not set. Create /var/www/html/.env and add it there.');
+  if (!$key) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+      'ok' => false,
+      'error' => 'Missing OPENAI_API_KEY. Set it in /var/www/html/.env or as an env var.',
+    ]);
+    exit;
+  }
+  return [
+    'api_key'    => $key,
+    'project_id' => $project,
+    // Choose a lightweight, smart, cheap model
+    'model'      => 'gpt-4o-mini',
+  ];
 }

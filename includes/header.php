@@ -1,6 +1,9 @@
 <?php
 if (!isset($_SESSION)) session_start();
 ?>
+
+<link rel="stylesheet" href="/assets/css/ai-chat.css">
+
 <style>
   /* --- existing look --- */
   .nav-profile-img img {

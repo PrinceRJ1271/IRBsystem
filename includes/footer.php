@@ -6,6 +6,7 @@
   <script src="assets/js/todolist.js"></script>
 
   <?php include __DIR__ . '/../ai/chat_widget.php'; ?>
+  <script src="/assets/js/ai-chat.js"></script>
 
 </body>
 </html>
