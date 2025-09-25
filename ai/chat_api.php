@@ -1,160 +1,250 @@
 <?php
 // ai/chat_api.php
-header('Content-Type: application/json');
+// POST JSON: { message: string, history?: [{role:"user"|"assistant", content:string}] }
+// RETURNS: { ok: true, reply: string } | { ok:false, error:string }
 
-require_once __DIR__ . '/../includes/ai_config.php';  // loads API key safely
-require_once __DIR__ . '/../config/db.php';            // mysqli $conn
-require_once __DIR__ . '/data_helpers.php';            // DB helpers
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
 
-/** Read incoming JSON */
-$in = json_decode(file_get_contents('php://input'), true) ?: [];
-$userMessages = $in['messages'] ?? [];
-if (!is_array($userMessages) || empty($userMessages)) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+  http_response_code(405);
+  echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
+  exit;
+}
+
+$raw = file_get_contents('php://input');
+$body = json_decode($raw, true);
+if (!is_array($body)) {
   http_response_code(400);
-  echo json_encode(['error' => 'Missing messages']); exit;
+  echo json_encode(['ok'=>false,'error'=>'Invalid JSON body']);
+  exit;
 }
 
-/** Build messages with a good system prompt */
-$messages = [
-  [
-    'role' => 'system',
-    'content' =>
-      "You are IRB System Assistant. Be helpful, concise, and friendly.\n" .
-      "You can answer using live data by calling tools. When the user asks " .
-      "about counts, KPIs, follow-ups, letters, clients, etc., prefer to " .
-      "call the most relevant tool first. Show small tables/bullets when clear."
-  ],
-];
-
-foreach ($userMessages as $m) {
-  // accept only role/content
-  if (!isset($m['role'],$m['content'])) continue;
-  $messages[] = ['role'=>$m['role'],'content'=>substr((string)$m['content'],0,8000)];
+$message = trim((string)($body['message'] ?? ''));
+$history = $body['history'] ?? [];
+if ($message === '' && empty($history)) {
+  http_response_code(400);
+  echo json_encode(['ok'=>false,'error'=>'Missing message']);
+  exit;
 }
 
-/** Define our tools */
+// --- Load config & DB helpers ---
+require_once __DIR__ . '/../includes/ai_config.php';  // reads env + picks model/key
+require_once __DIR__ . '/data_helpers.php';            // DB functions
+
+$cfg     = ai_config();
+$apiKey  = $cfg['api_key'];
+$project = $cfg['project_id'];
+$model   = $cfg['model'];        // keep it to gpt-4o-mini (or your choice)
+
+// --- Build chat messages for the Chat Completions API ---
+$messages = [[
+  'role'    => 'system',
+  'content' =>
+    "You are the IRB System assistant embedded in a StarAdmin2 dashboard.\n".
+    "You can call tools to query the IRB database. Always prefer concise, factual answers.\n".
+    "If a user asks for lists, return a short summary followed by a compact bullet list.\n".
+    "If a user asks for a date range you cannot access, say what range you used.\n".
+    "If the tool returns zero rows, say so politely."
+]];
+
+if (is_array($history)) {
+  foreach ($history as $m) {
+    if (!isset($m['role'], $m['content'])) continue;
+    $r = strtolower($m['role']);
+    if ($r === 'user' || $r === 'assistant') {
+      $messages[] = ['role' => $r, 'content' => (string)$m['content']];
+    }
+  }
+}
+$messages[] = ['role' => 'user', 'content' => $message];
+
+// --- Define tool schemas for the model ---
 $tools = [
   [
     'type' => 'function',
     'function' => [
-      'name' => 'get_pending_followups',
-      'description' => 'Get current pending follow-ups; choose received/sent/all',
+      'name' => 'list_companies_needing_followups',
+      'description' => 'Return companies that currently have pending follow-ups (received or sent).',
+      'parameters' => [
+        'type' => 'object',
+        'properties' => [],
+        'required' => []
+      ]
+    ]
+  ],
+  [
+    'type' => 'function',
+    'function' => [
+      'name' => 'get_pending_followups_count',
+      'description' => 'Return a single number: total pending follow-ups (received + sent).',
+      'parameters' => [
+        'type' => 'object',
+        'properties' => [],
+        'required' => []
+      ]
+    ]
+  ],
+  [
+    'type' => 'function',
+    'function' => [
+      'name' => 'latest_letters',
+      'description' => 'Return latest letters (received and/or sent) with company and date.',
       'parameters' => [
         'type' => 'object',
         'properties' => [
-          'type' => [
-            'type' => 'string',
-            'enum' => ['received','sent','all'],
-            'description' => 'Which pool to summarize'
-          ]
+          'limit' => ['type' => 'integer', 'description' => 'How many rows to return (1-50).']
         ],
-        'required' => ['type']
+        'required' => ['limit']
       ]
-    ],
+    ]
   ],
   [
     'type' => 'function',
     'function' => [
-      'name' => 'get_recent_letters',
-      'description' => 'Latest received/sent letters merged, newest first',
+      'name' => 'find_client_by_name',
+      'description' => 'Fuzzy search client by company name and return basic info.',
       'parameters' => [
         'type' => 'object',
         'properties' => [
-          'limit' => ['type'=>'integer','description'=>'Max items (<=25)']
-        ]
-      ]
-    ],
-  ],
-  [
-    'type' => 'function',
-    'function' => [
-      'name' => 'search_clients',
-      'description' => 'Lookup clients by company name or client_id',
-      'parameters' => [
-        'type' => 'object',
-        'properties' => [
-          'query' => ['type'=>'string','description'=>'Search text'],
-          'limit' => ['type'=>'integer','description'=>'Max results (<=25)']
+          'query' => ['type' => 'string', 'description' => 'Company name search string']
         ],
         'required' => ['query']
       ]
-    ],
-  ],
-  [
-    'type' => 'function',
-    'function' => [
-      'name' => 'get_kpis',
-      'description' => 'Return today snapshot of KPIs (total clients, received/sent this month, pending followups)',
-      'parameters' => ['type'=>'object','properties'=>[]]
-    ],
-  ],
+    ]
+  ]
 ];
 
-$model = 'gpt-4o-mini'; // fast + supports tools well
+// --- Call OpenAI (step 1): let model decide to call tools ---
+$payload = [
+  'model'       => $model,
+  'messages'    => $messages,
+  'temperature' => 0.2,
+  'tools'       => $tools,
+  'tool_choice' => 'auto',
+];
 
-/** Single/dual pass function-calling loop */
-$maxPasses = 3;
-$lastResponse = null;
-
-for ($i=0; $i<$maxPasses; $i++) {
-  $resp = ai_openai_headers();
-  $payload = [
-    'model' => $model,
-    'messages' => $messages,
-    'tools' => $tools,
-    'tool_choice' => 'auto',
-    'temperature' => 0.2
-  ];
-  $json = ai_http_post_json('https://api.openai.com/v1/chat/completions', $resp, $payload);
-  $choice = $json['choices'][0] ?? null;
-  if (!$choice) break;
-
-  $msg = $choice['message'] ?? [];
-  $toolCalls = $msg['tool_calls'] ?? [];
-
-  if ($toolCalls && is_array($toolCalls)) {
-    // Take the first tool call (simplify)
-    $tc = $toolCalls[0];
-    $fname = $tc['function']['name'] ?? '';
-    $fargs = $tc['function']['arguments'] ?? '{}';
-    $args  = json_decode($fargs, true) ?: [];
-
-    // Execute
-    $toolResult = null;
-    try {
-      switch ($fname) {
-        case 'get_pending_followups':
-          $toolResult = ai_db_pending_followups($args['type'] ?? 'all'); break;
-        case 'get_recent_letters':
-          $toolResult = ai_db_recent_letters((int)($args['limit'] ?? 8)); break;
-        case 'search_clients':
-          $toolResult = ai_db_search_clients((string)($args['query'] ?? ''), (int)($args['limit'] ?? 10)); break;
-        case 'get_kpis':
-          $toolResult = ai_db_kpis(); break;
-        default:
-          $toolResult = ['error'=>'unknown tool'];
-      }
-    } catch (\Throwable $e) {
-      $toolResult = ['error' => 'Tool failed: '.$e->getMessage()];
-    }
-
-    // Feed back to the model
-    $messages[] = $msg; // assistant w/ tool call
-    $messages[] = [
-      'role' => 'tool',
-      'tool_call_id' => $tc['id'],
-      'name' => $fname,
-      'content' => json_encode($toolResult, JSON_UNESCAPED_UNICODE)
-    ];
-    // and continue loop for final natural language response
-    continue;
-  }
-
-  // No tool calls -> final answer
-  $lastResponse = $msg['content'] ?? '';
-  break;
+$resp = openai_post('https://api.openai.com/v1/chat/completions', $payload, $apiKey, $project);
+if (!$resp['ok']) {
+  http_response_code(502);
+  echo json_encode(['ok'=>false,'error'=>$resp['error']]);
+  exit;
 }
 
-echo json_encode([
-  'reply' => $lastResponse ?: "Sorry, I couldn't form a reply.",
-]);
+$choice = $resp['data']['choices'][0] ?? null;
+if (!$choice) {
+  http_response_code(502);
+  echo json_encode(['ok'=>false,'error'=>'No completion returned']);
+  exit;
+}
+
+// If the model directly replied, just return it.
+if (empty($choice['message']['tool_calls'])) {
+  $reply = trim((string)($choice['message']['content'] ?? ''));
+  if ($reply === '') $reply = 'Sorry — I could not generate a response.';
+  echo json_encode(['ok'=>true,'reply'=>$reply]);
+  exit;
+}
+
+// --- Tool calls flow ---
+$tool_messages = [];
+foreach ($choice['message']['tool_calls'] as $call) {
+  $fn   = $call['function']['name'] ?? '';
+  $args = $call['function']['arguments'] ?? '{}';
+
+  $decoded = json_decode($args, true);
+  if (!is_array($decoded)) $decoded = [];
+
+  $result = null;
+
+  try {
+    switch ($fn) {
+      case 'list_companies_needing_followups':
+        $result = list_companies_needing_followups();
+        break;
+      case 'get_pending_followups_count':
+        $result = get_pending_followups_count();
+        break;
+      case 'latest_letters':
+        $limit = isset($decoded['limit']) ? (int)$decoded['limit'] : 8;
+        if ($limit < 1)  $limit = 1;
+        if ($limit > 50) $limit = 50;
+        $result = latest_letters($limit);
+        break;
+      case 'find_client_by_name':
+        $q = (string)($decoded['query'] ?? '');
+        $result = find_client_by_name($q);
+        break;
+      default:
+        $result = ['error' => 'Unknown tool: '.$fn];
+    }
+  } catch (Throwable $e) {
+    $result = ['error' => 'Tool failed: '.$e->getMessage()];
+  }
+
+  // Add the tool result back to the conversation
+  $tool_messages[] = [
+    'role'         => 'tool',
+    'tool_call_id' => $call['id'],
+    'name'         => $fn,
+    'content'      => json_encode($result, JSON_UNESCAPED_UNICODE)
+  ];
+}
+
+// --- Call OpenAI (step 2): ask the model to compose the final answer using tool outputs ---
+$followup = array_merge(
+  $messages,
+  [ $choice['message'] ],   // the assistant message that requested tools
+  $tool_messages
+);
+
+$payload2 = [
+  'model'       => $model,
+  'messages'    => $followup,
+  'temperature' => 0.2
+];
+
+$resp2 = openai_post('https://api.openai.com/v1/chat/completions', $payload2, $apiKey, $project);
+if (!$resp2['ok']) {
+  http_response_code(502);
+  echo json_encode(['ok'=>false,'error'=>$resp2['error']]);
+  exit;
+}
+
+$reply = trim((string)($resp2['data']['choices'][0]['message']['content'] ?? ''));
+if ($reply === '') $reply = 'Sorry — I could not generate a response.';
+echo json_encode(['ok'=>true,'reply'=>$reply]);
+exit;
+
+
+/* ---------- helpers ---------- */
+
+function openai_post(string $url, array $payload, string $apiKey, ?string $project) : array {
+  $ch = curl_init($url);
+  $headers = [
+    'Content-Type: application/json',
+    'Authorization: Bearer '.$apiKey,
+  ];
+  if ($project) $headers[] = 'OpenAI-Project: '.$project;
+
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST           => true,
+    CURLOPT_HTTPHEADER     => $headers,
+    CURLOPT_POSTFIELDS     => json_encode($payload),
+    CURLOPT_TIMEOUT        => 40,
+  ]);
+
+  $raw = curl_exec($ch);
+  $err = curl_error($ch);
+  $http= curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  curl_close($ch);
+
+  if ($err) return ['ok'=>false,'error'=>"cURL: $err"];
+  $data = json_decode($raw, true);
+  if ($http < 200 || $http >= 300) {
+    $detail = $data['error']['message'] ?? "HTTP $http";
+    return ['ok'=>false,'error'=>"OpenAI error: $detail"];
+  }
+  return ['ok'=>true,'data'=>$data];
+}
