@@ -1,10 +1,10 @@
 <?php
 // ai/chat_api.php
 // Receives {message:string, history?:[{role,content}], meta?:{…}} and returns {ok, reply}
-// Adds OpenAI "tools" (function calling) that read the IRB database server-side.
+// – Adds tool calling so the assistant can run server-side queries safely.
 
 require_once __DIR__ . '/../includes/ai_config.php';
-require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/db.php';          // gives $conn (mysqli)
 require_once __DIR__ . '/data_helpers.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -16,97 +16,90 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   exit;
 }
 
-// ---- Read JSON body safely ----
 $raw = file_get_contents('php://input');
-$data = json_decode($raw, true);
-if (!is_array($data)) {
+$in  = json_decode($raw, true);
+
+if (!is_array($in)) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'Invalid JSON']);
   exit;
 }
 
-$message = trim((string)($data['message'] ?? ''));
-$history = $data['history'] ?? [];
+$message = trim((string)($in['message'] ?? ''));
+$history = $in['history'] ?? [];
+
 if ($message === '' && empty($history)) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'Empty message']);
   exit;
 }
 
-// ---- Base system instruction ----
-$messages = [
-  [
-    'role' => 'system',
-    'content' =>
-      "You are an AI assistant for the IRB Letter System (StarAdmin2 dashboard). ".
-      "You can call server-side tools to query the database and summarize results. ".
-      "If a direct answer is unclear, ask a brief clarifying question. ".
-      "Be concise and always cite counts, dates, or IDs when helpful.",
-  ],
-];
+// ---- Model / credentials
+$cfg     = ai_config();
+$apiKey  = $cfg['api_key'];
+$model   = $cfg['model'] ?: 'gpt-4o-mini';
+$project = $cfg['project_id'] ?? '';
 
-// Thread history (only user/assistant)
+// ---- System prompt with high-level schema (tables/columns)
+$system = <<<SYS
+You are the AI assistant for the IRB Letter System (StarAdmin2 dashboard).
+You can answer from the database via tools and summarise for the user.
+
+Data model (simplified):
+- clients(client_id, company_name, ...)
+- letters_received(letter_received_id, client_id, received_date, follow_up_required, status, ...)
+- letters_received_followup(letter_received_id, followup_status, ...)
+- letters_sent(letter_sent_id, client_id, sent_date, follow_up_required, status, ...)
+- letters_sent_followup(letter_sent_id, followup_status, ...)
+
+General rules:
+- Prefer concise answers with small tables or bullet points.
+- If a tool returns arrays of rows, list company_name and relevant IDs/dates.
+- If no results: say so clearly.
+- Never guess values; only summarise tool results.
+SYS;
+
+// ---- Convert chat history to OpenAI format
+$messages = [['role' => 'system', 'content' => $system]];
 if (is_array($history)) {
   foreach ($history as $m) {
     if (!isset($m['role'], $m['content'])) continue;
     $r = strtolower($m['role']);
-    if (!in_array($r, ['user','assistant'], true)) continue;
+    if (!in_array($r, ['user', 'assistant'], true)) continue;
     $messages[] = ['role' => $r, 'content' => (string)$m['content']];
   }
 }
-
-// Append the latest user message
 $messages[] = ['role' => 'user', 'content' => $message];
 
-// ---- OpenAI credentials ----
-$cfg     = ai_config();
-$apiKey  = $cfg['api_key'];
-$model   = $cfg['model'];
-$project = $cfg['project_id'];
-
-// ---- Define tools (functions) with correct JSON schemas ----
-// NOTE: Even when a function has no parameters, `parameters` MUST be an object.
+// ---- Tool (function) definitions – NOTE: parameters are valid JSON Schemas (type=object)
 $tools = [
   [
     'type' => 'function',
     'function' => [
       'name' => 'list_companies_needing_followups',
-      'description' => 'Return a grouped list of companies that currently have pending follow-ups, with counts.',
-      'parameters' => [
-        'type'       => 'object',
-        'properties' => [],
-        'additionalProperties' => false,
-      ],
+      'description' => 'Return companies with letters that require follow-ups (both Sent and Received) that are still pending.',
+      'parameters' => [ 'type' => 'object', 'properties' => new stdClass(), 'additionalProperties' => false ],
     ],
   ],
   [
     'type' => 'function',
     'function' => [
-      'name' => 'pending_followups_count',
-      'description' => 'Return the total number of pending follow-ups right now.',
-      'parameters' => [
-        'type'       => 'object',
-        'properties' => [],
-        'additionalProperties' => false,
-      ],
+      'name' => 'count_pending_followups',
+      'description' => 'Return counts of pending follow-ups for Sent and Received letters.',
+      'parameters' => [ 'type' => 'object', 'properties' => new stdClass(), 'additionalProperties' => false ],
     ],
   ],
   [
     'type' => 'function',
     'function' => [
       'name' => 'latest_letters',
-      'description' => 'List the latest letters (received and sent) with type, id, company, and date.',
+      'description' => 'Fetch latest letters (both types) with company name and dates.',
       'parameters' => [
         'type' => 'object',
         'properties' => [
-          'count' => [
-            'type' => 'integer',
-            'description' => 'How many items to return (1-50). Default 8.',
-            'minimum' => 1,
-            'maximum' => 50,
-            'default' => 8,
-          ],
+          'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50, 'default' => 8],
         ],
+        'required' => [],
         'additionalProperties' => false,
       ],
     ],
@@ -114,174 +107,134 @@ $tools = [
   [
     'type' => 'function',
     'function' => [
-      'name' => 'find_client',
-      'description' => 'Search clients by (partial) company name and return top matches.',
+      'name' => 'find_client_by_name',
+      'description' => 'Find matching clients by partial company name.',
       'parameters' => [
         'type' => 'object',
         'properties' => [
-          'name' => [
-            'type' => 'string',
-            'description' => 'Partial company name to search for.',
-            'minLength' => 1,
-          ],
-          'limit' => [
-            'type' => 'integer',
-            'description' => 'Max results (1-20). Default 5.',
-            'minimum' => 1,
-            'maximum' => 20,
-            'default' => 5,
-          ],
+          'query' => ['type' => 'string', 'description' => 'Partial or full company name'],
+          'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50, 'default' => 10],
         ],
-        'required' => ['name'],
+        'required' => ['query'],
         'additionalProperties' => false,
       ],
     ],
   ],
 ];
 
-// ---- First call: let the model choose a tool if needed ----
-$reqBody = [
-  'model'     => $model,
-  'messages'  => $messages,
-  'tools'     => $tools,
-  'tool_choice' => 'auto',
-  'temperature' => 0.2,
-];
+// ---- Helper: call OpenAI
+function call_openai($apiKey, $project, $model, $messages, $tools = null) {
+  $payload = [
+    'model'    => $model,
+    'messages' => $messages,
+    'temperature' => 0.2,
+  ];
+  if ($tools) {
+    $payload['tools'] = $tools;
+    $payload['tool_choice'] = 'auto';
+  }
 
-$headers = array_filter([
-  'Content-Type: application/json',
-  'Authorization: Bearer '.$apiKey,
-  $project ? 'OpenAI-Project: '.$project : null,
-]);
+  $ch = curl_init('https://api.openai.com/v1/chat/completions');
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST           => true,
+    CURLOPT_HTTPHEADER     => array_filter([
+      'Content-Type: application/json',
+      'Authorization: Bearer ' . $apiKey,
+      $project ? 'OpenAI-Project: ' . $project : null,
+    ]),
+    CURLOPT_POSTFIELDS     => json_encode($payload),
+    CURLOPT_TIMEOUT        => 45,
+  ]);
+  $resp = curl_exec($ch);
+  $err  = curl_error($ch);
+  $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  curl_close($ch);
 
-$ch = curl_init('https://api.openai.com/v1/chat/completions');
-curl_setopt_array($ch, [
-  CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_POST           => true,
-  CURLOPT_HTTPHEADER     => $headers,
-  CURLOPT_POSTFIELDS     => json_encode($reqBody),
-  CURLOPT_TIMEOUT        => 45,
-]);
+  if ($err) return [null, "cURL error: $err"];
+  if ($http < 200 || $http >= 300) {
+    $body = json_decode($resp, true);
+    $detail = $body['error']['message'] ?? "HTTP $http";
+    return [null, "OpenAI error: $detail"];
+  }
+  return [json_decode($resp, true), null];
+}
 
-$resp = curl_exec($ch);
-$err  = curl_error($ch);
-$http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
+// ---- First call (let the model decide if it needs tools)
+list($first, $err) = call_openai($apiKey, $project, $model, $messages, $tools);
 if ($err) {
   http_response_code(502);
-  echo json_encode(['ok'=>false,'error'=>"cURL error: $err"]);
-  exit;
-}
-if ($http < 200 || $http >= 300) {
-  $body = json_decode($resp, true);
-  $detail = $body['error']['message'] ?? "HTTP $http";
-  http_response_code(502);
-  echo json_encode(['ok'=>false,'error'=>"OpenAI error: $detail"]);
+  echo json_encode(['ok' => false, 'error' => $err]);
   exit;
 }
 
-$body = json_decode($resp, true);
-$msg  = $body['choices'][0]['message'] ?? null;
+$choice = $first['choices'][0]['message'] ?? [];
+$toolCalls = $choice['tool_calls'] ?? [];
 
-// If the model called tools, execute them and send a follow-up call
-if (!empty($msg['tool_calls'])) {
+// If tools are requested, execute them and re-ask the model with tool results.
+$maxToolHops = 3;
+while (!empty($toolCalls) && $maxToolHops-- > 0) {
   $messages[] = [
-    'role' => $msg['role'] ?? 'assistant',
-    'content' => $msg['content'] ?? '',
-    'tool_calls' => $msg['tool_calls'],
+    'role' => 'assistant',
+    'content' => $choice['content'] ?? '',
+    'tool_calls' => $toolCalls,
   ];
 
-  foreach ($msg['tool_calls'] as $toolCall) {
-    $fnName = $toolCall['function']['name'] ?? '';
-    $args   = $toolCall['function']['arguments'] ?? '{}';
-    $args   = json_decode($args, true) ?: [];
+  foreach ($toolCalls as $tc) {
+    $name = $tc['function']['name'] ?? '';
+    $args = $tc['function']['arguments'] ?? '{}';
+    $args = json_decode($args, true) ?: [];
 
     try {
-      switch ($fnName) {
+      switch ($name) {
         case 'list_companies_needing_followups':
-          $result = dh_list_companies_needing_followups($conn);
+          $data = dh_list_companies_needing_followups($conn);
           break;
 
-        case 'pending_followups_count':
-          $result = dh_pending_followups_count($conn);
+        case 'count_pending_followups':
+          $data = dh_count_pending_followups($conn);
           break;
 
         case 'latest_letters':
-          $count  = isset($args['count']) ? (int)$args['count'] : 8;
-          if ($count < 1) $count = 1;
-          if ($count > 50) $count = 50;
-          $result = dh_latest_letters($conn, $count);
+          $limit = isset($args['limit']) ? (int)$args['limit'] : 8;
+          $data  = dh_latest_letters($conn, $limit);
           break;
 
-        case 'find_client':
-          $name  = (string)($args['name'] ?? '');
-          $limit = isset($args['limit']) ? (int)$args['limit'] : 5;
-          if ($limit < 1) $limit = 1;
-          if ($limit > 20) $limit = 20;
-          $result = dh_find_client($conn, $name, $limit);
+        case 'find_client_by_name':
+          $q     = (string)($args['query'] ?? '');
+          $limit = isset($args['limit']) ? (int)$args['limit'] : 10;
+          $data  = dh_find_client_by_name($conn, $q, $limit);
           break;
 
         default:
-          $result = ['error' => "Unknown function: $fnName"];
+          $data = ['error' => "Unknown tool: $name"];
       }
     } catch (Throwable $e) {
-      $result = ['error' => 'Server error: '.$e->getMessage()];
+      $data = ['error' => $e->getMessage()];
     }
 
-    // Append tool result back to the conversation
+    // Append tool result for the model
     $messages[] = [
       'role' => 'tool',
-      'tool_call_id' => $toolCall['id'],
-      'content' => json_encode($result, JSON_UNESCAPED_UNICODE),
+      'tool_call_id' => $tc['id'],
+      'name' => $name,
+      'content' => json_encode(['result' => $data], JSON_UNESCAPED_UNICODE),
     ];
   }
 
-  // Second call: let the model compose the final answer using tool output
-  $reqBody2 = [
-    'model'       => $model,
-    'messages'    => $messages,
-    'temperature' => 0.2,
-  ];
-
-  $ch2 = curl_init('https://api.openai.com/v1/chat/completions');
-  curl_setopt_array($ch2, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST           => true,
-    CURLOPT_HTTPHEADER     => $headers,
-    CURLOPT_POSTFIELDS     => json_encode($reqBody2),
-    CURLOPT_TIMEOUT        => 45,
-  ]);
-  $resp2 = curl_exec($ch2);
-  $err2  = curl_error($ch2);
-  $http2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
-  curl_close($ch2);
-
-  if ($err2) {
+  // Ask the model again, now that it has the tool outputs
+  list($again, $err) = call_openai($apiKey, $project, $model, $messages);
+  if ($err) {
     http_response_code(502);
-    echo json_encode(['ok'=>false,'error'=>"cURL error: $err2"]);
+    echo json_encode(['ok' => false, 'error' => $err]);
     exit;
   }
-  if ($http2 < 200 || $http2 >= 300) {
-    $body2 = json_decode($resp2, true);
-    $detail2 = $body2['error']['message'] ?? "HTTP $http2";
-    http_response_code(502);
-    echo json_encode(['ok'=>false,'error'=>"OpenAI error: $detail2"]);
-    exit;
-  }
-
-  $body2 = json_decode($resp2, true);
-  $reply = $body2['choices'][0]['message']['content'] ?? null;
-
-} else {
-  // No tool calls; just use the model's direct reply
-  $reply = $msg['content'] ?? null;
+  $choice    = $again['choices'][0]['message'] ?? [];
+  $toolCalls = $choice['tool_calls'] ?? [];
 }
 
-if (!$reply) {
-  http_response_code(502);
-  echo json_encode(['ok'=>false,'error'=>'No completion returned']);
-  exit;
-}
+// Final assistant message (either from first call or the follow-up)
+$final = trim((string)($choice['content'] ?? ''));
+if ($final === '') $final = "Sorry — I couldn't generate a reply.";
 
-echo json_encode(['ok' => true, 'reply' => $reply]);
+echo json_encode(['ok' => true, 'reply' => $final]);
