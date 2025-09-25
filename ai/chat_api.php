@@ -2,8 +2,9 @@
 // ai/chat_api.php
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/../includes/ai_config.php';
-require_once __DIR__ . '/data_helpers.php';
+require_once __DIR__ . '/../includes/ai_config.php';  // loads API key safely
+require_once __DIR__ . '/../config/db.php';            // mysqli $conn
+require_once __DIR__ . '/data_helpers.php';            // DB helpers
 
 /** Read incoming JSON */
 $in = json_decode(file_get_contents('php://input'), true) ?: [];

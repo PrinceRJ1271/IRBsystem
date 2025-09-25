@@ -1,64 +1,61 @@
 <?php
 // includes/ai_config.php
-// Safe server-side config for OpenAI and small helpers
+// Central place to read OpenAI creds safely from /var/www/html/.env (or env vars)
 
-if (!isset($_SESSION)) session_start();
+if (!function_exists('ai_config')) {
 
-/**
- * Read OpenAI credentials from environment.
- * Make sure you've exported them on the server (your .env or systemd Env):
- *   OPENAI_API_KEY=sk-...
- *   OPENAI_PROJECT_ID=proj_...  (optional)
- */
-function ai_get_openai_api_key(): string {
-  $k = getenv('OPENAI_API_KEY') ?: ($_ENV['OPENAI_API_KEY'] ?? '');
-  if (!$k) { http_response_code(500); die('[AI] Missing OPENAI_API_KEY'); }
-  return $k;
-}
+  function ai_config(): array {
+    static $cached = null;
+    if ($cached !== null) return $cached;
 
-function ai_get_openai_project_id(): ?string {
-  $p = getenv('OPENAI_PROJECT_ID') ?: ($_ENV['OPENAI_PROJECT_ID'] ?? '');
-  return $p ?: null;
-}
+    $env = [];
 
-function ai_openai_headers(): array {
-  $h = [
-    'Content-Type: application/json',
-    'Authorization: Bearer ' . ai_get_openai_api_key(),
-  ];
-  if ($pid = ai_get_openai_project_id()) {
-    // Only add if you actually use projects
-    $h[] = 'OpenAI-Project: ' . $pid;
+    // --- Try to read .env from common locations (do not error if missing) ---
+    $candidates = [
+      realpath(__DIR__ . '/../.env'),            // project root if repo is at document root
+      '/var/www/html/.env',                      // typical Apache/Nginx docroot
+      getenv('APP_DOTENV_PATH') ?: null,         // optional custom hint
+    ];
+
+    foreach ($candidates as $path) {
+      if (!$path || !is_readable($path)) continue;
+      $lines = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+      if (!$lines) continue;
+
+      foreach ($lines as $line) {
+        // skip comments
+        if (preg_match('/^\s*#/', $line)) continue;
+        if (!preg_match('/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/i', $line, $m)) continue;
+
+        $key = strtoupper(trim($m[1]));
+        $val = trim($m[2]);
+        // strip surrounding quotes if present
+        if ((str_starts_with($val, '"') && str_ends_with($val, '"')) ||
+            (str_starts_with($val, "'") && str_ends_with($val, "'"))) {
+          $val = substr($val, 1, -1);
+        }
+        $env[$key] = $val;
+
+        // also expose to process env (won't override existing)
+        if (getenv($key) === false) {
+          putenv("$key=$val");
+        }
+      }
+      // first readable .env wins
+      break;
+    }
+
+    // --- Collect values (env vars take priority over parsed .env) ---
+    $apiKey    = getenv('OPENAI_API_KEY') ?: ($env['OPENAI_API_KEY'] ?? '');
+    $projectId = getenv('OPENAI_PROJECT_ID') ?: ($env['OPENAI_PROJECT_ID'] ?? '');
+    // A small, cheap, chat-completions-capable model:
+    $model     = getenv('OPENAI_MODEL') ?: ($env['OPENAI_MODEL'] ?? 'gpt-4o-mini');
+
+    $cached = [
+      'api_key'    => $apiKey,
+      'project_id' => $projectId,
+      'model'      => $model,
+    ];
+    return $cached;
   }
-  return $h;
-}
-
-/** Curl POST helper (no streaming) */
-function ai_http_post_json(string $url, array $headers, array $payload): array {
-  $ch = curl_init($url);
-  curl_setopt_array($ch, [
-    CURLOPT_POST => true,
-    CURLOPT_HTTPHEADER => $headers,
-    CURLOPT_POSTFIELDS => json_encode($payload),
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT => 60,
-  ]);
-  $raw = curl_exec($ch);
-  if ($raw === false) {
-    http_response_code(500);
-    die('[AI] cURL error: ' . curl_error($ch));
-  }
-  $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-  curl_close($ch);
-  if ($code >= 300) {
-    http_response_code($code);
-    die('[AI] OpenAI error: ' . $raw);
-  }
-  $json = json_decode($raw, true);
-  return is_array($json) ? $json : [];
-}
-
-/** Small sanitizer (display only) */
-function ai_e(string $s): string {
-  return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
