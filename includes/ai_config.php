@@ -1,55 +1,64 @@
 <?php
 // includes/ai_config.php
-// Centralized, safe loader for the OpenAI credentials.
+// Safe server-side config for OpenAI and small helpers
 
-function ai_env($key, $default = null) {
-  // 1) try getenv (systemd/apache)
-  $val = getenv($key);
-  if ($val !== false && $val !== '') return $val;
+if (!isset($_SESSION)) session_start();
 
-  // 2) try /var/www/html/.env (your current location)
-  static $envCache = null;
-  if ($envCache === null) {
-    $envCache = [];
-    $envPathCandidates = [
-      __DIR__ . '/../.env',              // project root
-      '/var/www/html/.env',              // common prod path
-    ];
-    foreach ($envPathCandidates as $p) {
-      if (is_readable($p)) {
-        $raw = file_get_contents($p);
-        // Support KEY=value lines (no quotes required)
-        foreach (preg_split("/\\r\\n|\\r|\\n/", $raw) as $line) {
-          if (preg_match('/^\s*#/', $line) || trim($line)==='') continue;
-          if (strpos($line, '=') !== false) {
-            list($k, $v) = explode('=', $line, 2);
-            $envCache[trim($k)] = trim($v);
-          }
-        }
-        break;
-      }
-    }
-  }
-  return $envCache[$key] ?? $default;
+/**
+ * Read OpenAI credentials from environment.
+ * Make sure you've exported them on the server (your .env or systemd Env):
+ *   OPENAI_API_KEY=sk-...
+ *   OPENAI_PROJECT_ID=proj_...  (optional)
+ */
+function ai_get_openai_api_key(): string {
+  $k = getenv('OPENAI_API_KEY') ?: ($_ENV['OPENAI_API_KEY'] ?? '');
+  if (!$k) { http_response_code(500); die('[AI] Missing OPENAI_API_KEY'); }
+  return $k;
 }
 
-function ai_config() {
-  $key = ai_env('OPENAI_API_KEY');
-  $project = ai_env('OPENAI_PROJECT_ID'); // optional
+function ai_get_openai_project_id(): ?string {
+  $p = getenv('OPENAI_PROJECT_ID') ?: ($_ENV['OPENAI_PROJECT_ID'] ?? '');
+  return $p ?: null;
+}
 
-  if (!$key) {
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode([
-      'ok' => false,
-      'error' => 'Missing OPENAI_API_KEY. Set it in /var/www/html/.env or as an env var.',
-    ]);
-    exit;
-  }
-  return [
-    'api_key'    => $key,
-    'project_id' => $project,
-    // Choose a lightweight, smart, cheap model
-    'model'      => 'gpt-4o-mini',
+function ai_openai_headers(): array {
+  $h = [
+    'Content-Type: application/json',
+    'Authorization: Bearer ' . ai_get_openai_api_key(),
   ];
+  if ($pid = ai_get_openai_project_id()) {
+    // Only add if you actually use projects
+    $h[] = 'OpenAI-Project: ' . $pid;
+  }
+  return $h;
+}
+
+/** Curl POST helper (no streaming) */
+function ai_http_post_json(string $url, array $headers, array $payload): array {
+  $ch = curl_init($url);
+  curl_setopt_array($ch, [
+    CURLOPT_POST => true,
+    CURLOPT_HTTPHEADER => $headers,
+    CURLOPT_POSTFIELDS => json_encode($payload),
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 60,
+  ]);
+  $raw = curl_exec($ch);
+  if ($raw === false) {
+    http_response_code(500);
+    die('[AI] cURL error: ' . curl_error($ch));
+  }
+  $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  curl_close($ch);
+  if ($code >= 300) {
+    http_response_code($code);
+    die('[AI] OpenAI error: ' . $raw);
+  }
+  $json = json_decode($raw, true);
+  return is_array($json) ? $json : [];
+}
+
+/** Small sanitizer (display only) */
+function ai_e(string $s): string {
+  return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }

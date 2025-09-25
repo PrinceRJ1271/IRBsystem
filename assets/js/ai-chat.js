@@ -1,89 +1,61 @@
 // assets/js/ai-chat.js
-(() => {
-  const $ = (sel, root=document) => root.querySelector(sel);
-  const chat    = $('#irb-chat');
-  const fab     = $('#irbChatFab');
-  const sendBtn = $('#irbChatSend');
-  const input   = $('#irbChatInput');
-  const body    = $('.irb-chat__body', chat);
-  const typing  = $('#irbTyping');
-  const minBtn  = $('#irbChatMinBtn');
-  const closeBtn= $('#irbChatCloseBtn');
+(function(){
+  const $chat  = document.getElementById('aiChat');
+  const $fab   = document.getElementById('aiFab');
+  const $body  = $chat?.querySelector('.ai-body');
+  const $input = document.getElementById('aiInput');
+  const $send  = document.getElementById('aiSend');
+  const $min   = $chat?.querySelector('.ai-min');
+  const $close = $chat?.querySelector('.ai-close');
 
-  const SUGGESTION_CLASS = 'chip';
-  const API_URL = '/ai/chat_ai.php'; // server endpoint
+  function show(){ if ($chat){ $chat.style.display='block'; $fab.style.display='none'; $input?.focus(); } }
+  function hide(){ if ($chat){ $chat.style.display='none'; $fab.style.display='inline-flex'; } }
+  function minimize(){ $chat.classList.toggle('is-min'); if ($chat.classList.contains('is-min')){ $body.style.display='none'; } else { $body.style.display='block'; } }
+  function scrollBottom(){ setTimeout(()=>{ $body.scrollTop = $body.scrollHeight; }, 10); }
 
-  let history = []; // [{role:'user'|'assistant', content:string}]
-
-  function open()  { chat.classList.add('open'); }
-  function close() { chat.classList.remove('open'); }
-  fab.addEventListener('click', open);
-  closeBtn.addEventListener('click', close);
-  minBtn.addEventListener('click', () => chat.classList.toggle('open'));
-
-  // suggested chips
-  body.addEventListener('click', e => {
-    const chip = e.target.closest('.'+SUGGESTION_CLASS);
-    if (!chip) return;
-    input.value = chip.dataset.q || chip.textContent.trim();
-    input.focus();
-  });
-
-  function addMsg(role, text, isError=false) {
-    const wrap = document.createElement('div');
-    wrap.className = `irb-msg irb-msg--${role}`;
-    wrap.innerHTML = `
-      <div class="irb-msg__avatar">
-        <i class="mdi ${role === 'user' ? 'mdi-account-circle' : 'mdi-robot'}"></i>
-      </div>
-      <div class="irb-msg__bubble ${isError ? 'irb-error':''}"></div>
-    `;
-    wrap.querySelector('.irb-msg__bubble').textContent = text;
-    body.appendChild(wrap);
-    body.scrollTop = body.scrollHeight;
+  function addMsg(role, html){
+    const el = document.createElement('div');
+    el.className = 'ai-msg ' + (role==='user'?'ai-msg-user':'ai-msg-bot');
+    el.innerHTML = `<div class="ai-bubble">${html}</div>`;
+    $body.appendChild(el);
+    scrollBottom();
   }
 
-  async function ask(msg) {
-    history.push({ role:'user', content: msg });
-    addMsg('user', msg);
-    input.value = '';
-    typing.hidden = false;
-    body.scrollTop = body.scrollHeight;
+  async function ask(question){
+    const content = (question||'').trim();
+    if(!content) return;
+    addMsg('user', escapeHtml(content));
+    $input.value='';
 
-    try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ message: msg, history })
+    try{
+      const res = await fetch('/ai/chat_api.php', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ messages: [{role:'user', content}] })
       });
-
-      const data = await res.json().catch(() => ({}));
-
-      typing.hidden = true;
-
-      if (!data || !data.ok) {
-        const err = data && data.error ? data.error : `Network error (${res.status})`;
-        addMsg('assistant', err, true);
-        return;
-      }
-
-      history.push({ role:'assistant', content: data.reply });
-      addMsg('assistant', data.reply);
-    } catch (e) {
-      typing.hidden = true;
-      addMsg('assistant', 'Network error. Please try again.', true);
+      const json = await res.json();
+      addMsg('bot', renderMarkdown(json.reply||'Sorry, no reply.'));
+    }catch(e){
+      addMsg('bot', 'Network error. Please try again.');
     }
   }
 
-  sendBtn.addEventListener('click', () => {
-    const msg = input.value.trim();
-    if (msg) ask(msg);
-  });
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      const msg = input.value.trim();
-      if (msg) ask(msg);
-    }
+  // Simple MD -> HTML (just line breaks + bullets)
+  function renderMarkdown(t){
+    return escapeHtml(t)
+      .replace(/\n\- (.+)/g,'<br>• $1')
+      .replace(/\n/g,'<br>');
+  }
+
+  function escapeHtml(s){ return s.replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  // events
+  $fab?.addEventListener('click', show);
+  $close?.addEventListener('click', hide);
+  $min?.addEventListener('click', minimize);
+
+  $send?.addEventListener('click', ()=>ask($input.value));
+  $input?.addEventListener('keydown', e => {
+    if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask($input.value); }
   });
 })();
