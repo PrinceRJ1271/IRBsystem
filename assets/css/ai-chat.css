@@ -24,10 +24,10 @@
   right: 24px;
   bottom: 24px;
 
-  /* ⬇️ Auto-size with zoom / screen using clamp + dvh (fallback is overridden by JS too) */
-  width: clamp(300px, 28vw, 420px);
+  /* ⬇️ Fully responsive: width/height follow viewport & zoom */
+  width: clamp(260px, 26vw, 380px);
   max-width: calc(100vw - 32px);
-  height: clamp(360px, 72dvh, 82dvh);
+  height: clamp(320px, 72dvh, 82dvh);
   max-height: calc(100dvh - 32px);
 
   background: var(--ai-card);
@@ -39,10 +39,10 @@
   z-index: 1045; /* above cards, below modals */
 }
 
-/* Prefer small viewport units where supported (better under zoom on mobile) */
+/* Prefer small/dynamic viewport units where supported (better with browser UI changes) */
 @supports (height: 100svh) {
   #aiChat{
-    height: clamp(360px, 72svh, 82svh);
+    height: clamp(320px, 72svh, 82svh);
     max-height: calc(100svh - 32px);
   }
 }
@@ -56,9 +56,7 @@
   background: linear-gradient(135deg, var(--ai-primary), var(--ai-primary-2));
   color:#fff;
 }
-.ai-chat__brand{
-  display:flex; align-items:center; gap:8px; font-weight:600;
-}
+.ai-chat__brand{ display:flex; align-items:center; gap:8px; font-weight:600; }
 .ai-chat__brand .badge{
   background: rgba(255,255,255,.18);
   padding: 2px 8px;
@@ -79,15 +77,12 @@
 
 /* Body */
 .ai-chat__body{
-  flex: 1 1 auto;
+  flex: 1 1 auto;           /* <- this lets the body auto-fit between header & footer */
   overflow: auto;
   padding: 16px 14px;
   background: #f8f9fc;
 }
-.ai-chat__bubble{
-  margin-bottom: 10px;
-  display: flex;
-}
+.ai-chat__bubble{ margin-bottom: 10px; display: flex; }
 .ai-chat__bubble--assistant{ justify-content:flex-start; }
 .ai-chat__bubble--user{ justify-content:flex-end; }
 .ai-chat__bubble-in{
@@ -99,13 +94,8 @@
   line-height: 1.45;
   color:#2a2e34;
 }
-.ai-chat__bubble--assistant .ai-chat__bubble-in{
-  background: #ffffff;
-}
-.ai-chat__bubble--user .ai-chat__bubble-in{
-  background: #e8f1ff;
-  border-color: #e4ecff;
-}
+.ai-chat__bubble--assistant .ai-chat__bubble-in{ background:#ffffff; }
+.ai-chat__bubble--user .ai-chat__bubble-in{ background:#e8f1ff; border-color:#e4ecff; }
 
 /* Footer */
 .ai-chat__footer{
@@ -113,9 +103,7 @@
   padding: 10px;
   background: var(--ai-bg);
 }
-.ai-chipbar{
-  display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 8px;
-}
+.ai-chipbar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 8px; }
 .ai-chip{
   border: var(--ai-border);
   background:#fff;
@@ -127,9 +115,7 @@
 }
 .ai-chip:hover{ background:#f3f7ff; color:#33415c; }
 
-.ai-input{
-  display:flex; gap:8px;
-}
+.ai-input{ display:flex; gap:8px; }
 .ai-input input{
   flex:1 1 auto;
   border: var(--ai-border);
@@ -172,7 +158,7 @@
   40%{ opacity: 1; }
 }
 
-/* Resizer */
+/* Resizer (optional drag-resize by user) */
 .ai-resize{
   width:100%; height:10px; cursor:n-resize; margin-top:6px;
   background: transparent;
@@ -180,5 +166,5 @@
 
 /* Small screens / heavy zoom: keep it inside viewport nicely */
 @media (max-width: 575.98px){
-  #aiChat{ right:12px; bottom:12px; width: min(100vw - 24px, 520px); }
+  #aiChat{ right:12px; bottom:12px; width: min(100vw - 24px, 420px); }
 }

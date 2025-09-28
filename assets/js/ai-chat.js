@@ -17,53 +17,38 @@
 
   const API_URL = '/ai/chat_api.php';  // absolute path so it works on every page
   const history = [];
+  let userResized = false;             // <-- Only if user drags the resizer
 
-  /* ------------------ Auto-resize for zoom & small screens ------------------ */
-  function computeH() {
-    const vh = window.innerHeight || document.documentElement.clientHeight || 800;
-    const desired = Math.round(vh * 0.78);
-    const min = 360;
-    const max = Math.max(360, vh - 32); // leave margins
-    return Math.max(min, Math.min(desired, max));
+  /* ------------------ Auto-fit body (no fixed width/height inline) ------------------ */
+  function fitBody() {
+    // Let CSS clamp control the panel size. We only ensure the body scroll area is correct.
+    const header = el.root.querySelector('.ai-chat__header');
+    const footer = el.root.querySelector('.ai-chat__footer');
+    const total  = el.root.getBoundingClientRect().height;
+    const hh = header ? header.getBoundingClientRect().height : 0;
+    const hf = footer ? footer.getBoundingClientRect().height : 0;
+    const maxBody = Math.max(120, total - hh - hf);
+    if (el.body) el.body.style.maxHeight = maxBody + 'px';
   }
-  function computeW() {
-    const vw = window.innerWidth || document.documentElement.clientWidth || 1280;
-    // Scale softly with viewport; desktop ~420, mobiles smaller.
-    return Math.round(Math.min(420, Math.max(300, vw * 0.28)));
-  }
-  function applySizes() {
-    const h = computeH();
-    const w = computeW();
-    el.root.style.height = h + 'px';
-    el.root.style.width  = w + 'px';
 
-    // Keep only the body scrollable (header/footer fixed)
-    requestAnimationFrame(() => {
-      const header = el.root.querySelector('.ai-chat__header');
-      const footer = el.root.querySelector('.ai-chat__footer');
-      const hh = header ? header.getBoundingClientRect().height : 0;
-      const hf = footer ? footer.getBoundingClientRect().height : 0;
-      const total = el.root.getBoundingClientRect().height;
-      const maxBody = Math.max(120, total - hh - hf);
-      if (el.body) el.body.style.maxHeight = maxBody + 'px';
-    });
-  }
-  // Run now and on viewport changes (zooms trigger resize)
-  applySizes();
-  window.addEventListener('resize', applySizes, { passive: true });
-  window.addEventListener('orientationchange', applySizes);
+  // Run now and whenever the panel size changes (zoom triggers ResizeObserver reliably)
+  fitBody();
+  const ro = new ResizeObserver(fitBody);
+  ro.observe(el.root);
+  window.addEventListener('orientationchange', () => setTimeout(fitBody, 150));
+  window.addEventListener('resize', () => setTimeout(fitBody, 50)); // fallback
 
   // Re-apply when opening from launcher (in case viewport changed)
   function openPanel() {
     el.root.style.display = 'flex';
     el.launcher.style.display = 'none';
-    applySizes();
+    // Clear inline height unless the user manually resized (so CSS can auto-fit)
+    if (!userResized) el.root.style.height = '';
+    fitBody();
   }
 
-  /* ------------------------------- Helpers -------------------------------- */
-  function scrollToBottom() {
-    el.body.scrollTop = el.body.scrollHeight;
-  }
+  /* -------------------------------- Helpers -------------------------------- */
+  function scrollToBottom() { el.body.scrollTop = el.body.scrollHeight; }
 
   function bubble(role, html) {
     const wrap = document.createElement('div');
@@ -77,10 +62,7 @@
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  function setBusy(busy) {
-    el.input.disabled = busy;
-    el.send.disabled  = busy;
-  }
+  function setBusy(busy) { el.input.disabled = busy; el.send.disabled = busy; }
 
   function typingOn() {
     const wrap = document.createElement('div');
@@ -92,10 +74,7 @@
     el.body.appendChild(wrap);
     scrollToBottom();
   }
-  function typingOff() {
-    const n = document.getElementById('aiTypingRow');
-    if (n) n.remove();
-  }
+  function typingOff() { const n = document.getElementById('aiTypingRow'); if (n) n.remove(); }
 
   /* -------------------------------- Send ---------------------------------- */
   async function ask(msg) {
@@ -169,22 +148,20 @@
   });
   el.launcher.addEventListener('click', openPanel);
 
-  // Simple height resize (still supported). After manual resize we keep auto fit on future viewport resizes.
+  // Optional: user drag-resize. Only then we set a fixed inline height.
   (function enableResize() {
     let startY = 0;
     let startH = 0;
     function onMove(e) {
       const y = e.touches ? e.touches[0].clientY : e.clientY;
       const dy = y - startY;
-      const newH = Math.max(360, startH - dy);
+      const vh = Math.max(300, window.innerHeight || 800);
+      const minH = 280;
+      const maxH = vh - 32; // keep inside viewport
+      const newH = Math.max(minH, Math.min(maxH, startH - dy));
       el.root.style.height = newH + 'px';
-      // keep body scroll area valid
-      const header = el.root.querySelector('.ai-chat__header');
-      const footer = el.root.querySelector('.ai-chat__footer');
-      const hh = header ? header.getBoundingClientRect().height : 0;
-      const hf = footer ? footer.getBoundingClientRect().height : 0;
-      const maxBody = Math.max(120, newH - hh - hf);
-      if (el.body) el.body.style.maxHeight = maxBody + 'px';
+      userResized = true;
+      fitBody();
     }
     function end() {
       window.removeEventListener('mousemove', onMove);
@@ -192,6 +169,7 @@
       window.removeEventListener('mouseup', end);
       window.removeEventListener('touchend', end);
     }
+    if (!el.resize) return;
     el.resize.addEventListener('mousedown', (e) => {
       startY = e.clientY; startH = el.root.getBoundingClientRect().height;
       window.addEventListener('mousemove', onMove);
