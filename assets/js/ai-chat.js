@@ -18,7 +18,49 @@
   const API_URL = '/ai/chat_api.php';  // absolute path so it works on every page
   const history = [];
 
-  // ---------- Helpers ----------
+  /* ------------------ Auto-resize for zoom & small screens ------------------ */
+  function computeH() {
+    const vh = window.innerHeight || document.documentElement.clientHeight || 800;
+    const desired = Math.round(vh * 0.78);
+    const min = 360;
+    const max = Math.max(360, vh - 32); // leave margins
+    return Math.max(min, Math.min(desired, max));
+  }
+  function computeW() {
+    const vw = window.innerWidth || document.documentElement.clientWidth || 1280;
+    // Scale softly with viewport; desktop ~420, mobiles smaller.
+    return Math.round(Math.min(420, Math.max(300, vw * 0.28)));
+  }
+  function applySizes() {
+    const h = computeH();
+    const w = computeW();
+    el.root.style.height = h + 'px';
+    el.root.style.width  = w + 'px';
+
+    // Keep only the body scrollable (header/footer fixed)
+    requestAnimationFrame(() => {
+      const header = el.root.querySelector('.ai-chat__header');
+      const footer = el.root.querySelector('.ai-chat__footer');
+      const hh = header ? header.getBoundingClientRect().height : 0;
+      const hf = footer ? footer.getBoundingClientRect().height : 0;
+      const total = el.root.getBoundingClientRect().height;
+      const maxBody = Math.max(120, total - hh - hf);
+      if (el.body) el.body.style.maxHeight = maxBody + 'px';
+    });
+  }
+  // Run now and on viewport changes (zooms trigger resize)
+  applySizes();
+  window.addEventListener('resize', applySizes, { passive: true });
+  window.addEventListener('orientationchange', applySizes);
+
+  // Re-apply when opening from launcher (in case viewport changed)
+  function openPanel() {
+    el.root.style.display = 'flex';
+    el.launcher.style.display = 'none';
+    applySizes();
+  }
+
+  /* ------------------------------- Helpers -------------------------------- */
   function scrollToBottom() {
     el.body.scrollTop = el.body.scrollHeight;
   }
@@ -55,7 +97,7 @@
     if (n) n.remove();
   }
 
-  // ---------- Send ----------
+  /* -------------------------------- Send ---------------------------------- */
   async function ask(msg) {
     if (!msg) return;
     bubble('user', esc(msg));
@@ -125,19 +167,24 @@
     el.root.style.display = 'none';
     el.launcher.style.display = 'inline-flex';
   });
-  el.launcher.addEventListener('click', () => {
-    el.root.style.display = 'flex';
-    el.launcher.style.display = 'none';
-  });
+  el.launcher.addEventListener('click', openPanel);
 
-  // Simple height resize
+  // Simple height resize (still supported). After manual resize we keep auto fit on future viewport resizes.
   (function enableResize() {
     let startY = 0;
     let startH = 0;
     function onMove(e) {
-      const dy = (e.touches ? e.touches[0].clientY : e.clientY) - startY;
-      const newH = Math.max(360, startH + dy * -1);
+      const y = e.touches ? e.touches[0].clientY : e.clientY;
+      const dy = y - startY;
+      const newH = Math.max(360, startH - dy);
       el.root.style.height = newH + 'px';
+      // keep body scroll area valid
+      const header = el.root.querySelector('.ai-chat__header');
+      const footer = el.root.querySelector('.ai-chat__footer');
+      const hh = header ? header.getBoundingClientRect().height : 0;
+      const hf = footer ? footer.getBoundingClientRect().height : 0;
+      const maxBody = Math.max(120, newH - hh - hf);
+      if (el.body) el.body.style.maxHeight = maxBody + 'px';
     }
     function end() {
       window.removeEventListener('mousemove', onMove);
@@ -156,5 +203,4 @@
       window.addEventListener('touchend', end);
     });
   })();
-
 })();
