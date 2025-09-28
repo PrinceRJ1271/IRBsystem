@@ -103,29 +103,47 @@ $stmt2->bind_param("sssssss",
 $stmt2->execute();
 $result_sent = $stmt2->get_result();
 
-/* -------------------- Letters Delivered (kept as-is; searches IDs/fields available) -------------------- */
+/* -------------------- Letters Delivered (JOIN to show names like other tables) -------------------- */
 $result_delivery = null;
 if ($_SESSION['level_id'] == 1 || $_SESSION['level_id'] == 4) {
     $sql_delivery = "
       SELECT
-        delivery_id,
-        letter_sent_id,
-        delivery_method,
-        tracking_number,
-        status,
-        ad_staff_id
-      FROM letters_delivered
+        ld.delivery_id,
+        ld.letter_sent_id,
+        ls.client_id,
+        c.company_name,
+        ls.branch_id,
+        b.name AS branch_name,
+        ls.letter_type_id,
+        lt.description AS letter_type_desc,
+        ld.delivery_method,
+        ld.tracking_number,
+        ld.status,
+        ld.ad_staff_id,
+        ld.delivered_date
+      FROM letters_delivered ld
+      LEFT JOIN letters_sent ls
+        ON ls.letter_sent_id = ld.letter_sent_id
+      LEFT JOIN clients c
+        ON c.client_id = ls.client_id
+      LEFT JOIN irb_branches b
+        ON b.branch_id = ls.branch_id
+      LEFT JOIN letter_types lt
+        ON (lt.letter_id = ls.letter_type_id OR lt.id = ls.letter_type_id)
       WHERE
-           delivery_id     LIKE ?
-        OR letter_sent_id  LIKE ?
-        OR ad_staff_id     LIKE ?
-        OR delivery_method LIKE ?
-        OR tracking_number LIKE ?
-        OR status         LIKE ?
-      ORDER BY delivered_date DESC, delivery_id DESC
+           ld.delivery_id     LIKE ?
+        OR ld.letter_sent_id  LIKE ?
+        OR c.company_name     LIKE ?
+        OR b.name             LIKE ?
+        OR lt.description     LIKE ?
+        OR ld.ad_staff_id     LIKE ?
+        OR ld.delivery_method LIKE ?
+        OR ld.tracking_number LIKE ?
+        OR ld.status          LIKE ?
+      ORDER BY ld.delivered_date DESC, ld.delivery_id DESC
     ";
     $stmt3 = $conn->prepare($sql_delivery);
-    $stmt3->bind_param("ssssss", $filter, $filter, $filter, $filter, $filter, $filter);
+    $stmt3->bind_param("sssssssss", $filter, $filter, $filter, $filter, $filter, $filter, $filter, $filter, $filter);
     $stmt3->execute();
     $result_delivery = $stmt3->get_result();
 }
@@ -265,6 +283,9 @@ if ($_SESSION['level_id'] == 1 || $_SESSION['level_id'] == 4) {
                         <thead>
                           <tr>
                             <th>ID</th>
+                            <th>Client</th>
+                            <th>Branch</th>
+                            <th>Letter Type</th>
                             <th>Letter Sent</th>
                             <th>Method</th>
                             <th>Tracking</th>
@@ -276,6 +297,24 @@ if ($_SESSION['level_id'] == 1 || $_SESSION['level_id'] == 4) {
                           <?php while ($row = $result_delivery->fetch_assoc()): ?>
                           <tr>
                             <td><?= htmlspecialchars($row['delivery_id']) ?></td>
+                            <td>
+                              <?= htmlspecialchars($row['company_name'] ?: $row['client_id']) ?>
+                              <?php if (!empty($row['company_name'])): ?>
+                                <small class="text-muted">(<?= htmlspecialchars($row['client_id']) ?>)</small>
+                              <?php endif; ?>
+                            </td>
+                            <td>
+                              <?= htmlspecialchars($row['branch_name'] ?: $row['branch_id']) ?>
+                              <?php if (!empty($row['branch_name'])): ?>
+                                <small class="text-muted">(<?= htmlspecialchars($row['branch_id']) ?>)</small>
+                              <?php endif; ?>
+                            </td>
+                            <td>
+                              <?= htmlspecialchars($row['letter_type_desc'] ?: $row['letter_type_id']) ?>
+                              <?php if (!empty($row['letter_type_desc']) && !empty($row['letter_type_id'])): ?>
+                                <small class="text-muted">(<?= htmlspecialchars($row['letter_type_id']) ?>)</small>
+                              <?php endif; ?>
+                            </td>
                             <td><?= htmlspecialchars($row['letter_sent_id']) ?></td>
                             <td><?= htmlspecialchars($row['delivery_method']) ?></td>
                             <td><?= htmlspecialchars($row['tracking_number']) ?></td>
