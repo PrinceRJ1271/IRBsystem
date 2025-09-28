@@ -3,12 +3,23 @@ include '../config/db.php';
 include '../includes/auth.php';
 check_access([1, 2, 3, 4]); // All roles allowed
 
-$filter = isset($_GET['q']) ? '%' . $_GET['q'] . '%' : '%';
+// Allow empty => show all; otherwise wrap with %...%
+$q = trim($_GET['q'] ?? '');
+$filter = ($q === '') ? '%' : '%' . $q . '%';
 
-/* -------------------- Letters Received (with names) -------------------- */
-// We join on clients, branches, and letter_types.
-// letter_type_id may contain either letter_types.letter_id (string) OR letter_types.id (int),
-// so we join with an OR to cover both possibilities.
+/* -------------------- Letters Received (with names + broader search) -------------------- */
+/*
+  We join on:
+    - clients (company_name)
+    - irb_branches (name)
+    - letter_types (description)    NOTE: join covers both letter_id (string) and id (int)
+
+  Search now matches:
+    - lr.letter_received_id (e.g., LR12345)
+    - lr.client_id OR clients.company_name (partial company name)
+    - lr.branch_id OR irb_branches.name (partial branch name)
+    - lr.letter_type_id OR letter_types.description (partial letter type text)
+*/
 $sql_received = "
   SELECT
     lr.letter_received_id,
@@ -27,17 +38,30 @@ $sql_received = "
     ON b.branch_id = lr.branch_id
   LEFT JOIN letter_types lt
     ON (lt.letter_id = lr.letter_type_id OR lt.id = lr.letter_type_id)
-  WHERE lr.letter_received_id LIKE ?
-     OR lr.client_id LIKE ?
-     OR lr.branch_id LIKE ?
+  WHERE
+       lr.letter_received_id LIKE ?
+    OR lr.client_id         LIKE ?
+    OR c.company_name       LIKE ?
+    OR lr.branch_id         LIKE ?
+    OR b.name               LIKE ?
+    OR lr.letter_type_id    LIKE ?
+    OR lt.description       LIKE ?
   ORDER BY lr.received_date DESC, lr.letter_received_id DESC
 ";
 $stmt1 = $conn->prepare($sql_received);
-$stmt1->bind_param("sss", $filter, $filter, $filter);
+$stmt1->bind_param("sssssss",
+  $filter, // letter_received_id
+  $filter, // client_id
+  $filter, // company_name
+  $filter, // branch_id
+  $filter, // branch name
+  $filter, // letter_type_id
+  $filter  // letter type description
+);
 $stmt1->execute();
 $result_received = $stmt1->get_result();
 
-/* -------------------- Letters Sent (with names) -------------------- */
+/* -------------------- Letters Sent (with names + broader search) -------------------- */
 $sql_sent = "
   SELECT
     ls.letter_sent_id,
@@ -56,17 +80,30 @@ $sql_sent = "
     ON b.branch_id = ls.branch_id
   LEFT JOIN letter_types lt
     ON (lt.letter_id = ls.letter_type_id OR lt.id = ls.letter_type_id)
-  WHERE ls.letter_sent_id LIKE ?
-     OR ls.client_id LIKE ?
-     OR ls.branch_id LIKE ?
+  WHERE
+       ls.letter_sent_id  LIKE ?
+    OR ls.client_id       LIKE ?
+    OR c.company_name     LIKE ?
+    OR ls.branch_id       LIKE ?
+    OR b.name             LIKE ?
+    OR ls.letter_type_id  LIKE ?
+    OR lt.description     LIKE ?
   ORDER BY ls.sent_date DESC, ls.letter_sent_id DESC
 ";
 $stmt2 = $conn->prepare($sql_sent);
-$stmt2->bind_param("sss", $filter, $filter, $filter);
+$stmt2->bind_param("sssssss",
+  $filter, // letter_sent_id
+  $filter, // client_id
+  $filter, // company_name
+  $filter, // branch_id
+  $filter, // branch name
+  $filter, // letter_type_id
+  $filter  // letter type description
+);
 $stmt2->execute();
 $result_sent = $stmt2->get_result();
 
-/* -------------------- Letters Delivered (kept as-is) -------------------- */
+/* -------------------- Letters Delivered (kept as-is; searches IDs/fields available) -------------------- */
 $result_delivery = null;
 if ($_SESSION['level_id'] == 1 || $_SESSION['level_id'] == 4) {
     $sql_delivery = "
@@ -78,13 +115,17 @@ if ($_SESSION['level_id'] == 1 || $_SESSION['level_id'] == 4) {
         status,
         ad_staff_id
       FROM letters_delivered
-      WHERE delivery_id LIKE ?
-         OR letter_sent_id LIKE ?
-         OR ad_staff_id LIKE ?
+      WHERE
+           delivery_id     LIKE ?
+        OR letter_sent_id  LIKE ?
+        OR ad_staff_id     LIKE ?
+        OR delivery_method LIKE ?
+        OR tracking_number LIKE ?
+        OR status         LIKE ?
       ORDER BY delivered_date DESC, delivery_id DESC
     ";
     $stmt3 = $conn->prepare($sql_delivery);
-    $stmt3->bind_param("sss", $filter, $filter, $filter);
+    $stmt3->bind_param("ssssss", $filter, $filter, $filter, $filter, $filter, $filter);
     $stmt3->execute();
     $result_delivery = $stmt3->get_result();
 }
@@ -117,7 +158,13 @@ if ($_SESSION['level_id'] == 1 || $_SESSION['level_id'] == 4) {
 
                   <h4 class="card-title">Quick Search</h4>
                   <form method="get" class="form-inline mb-4">
-                    <input type="text" name="q" class="form-control mr-2" placeholder="Enter ID, Client ID, or Branch ID" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>" style="width:300px;">
+                    <input
+                      type="text"
+                      name="q"
+                      class="form-control mr-2"
+                      placeholder="Type ID, company, branch, or letter type..."
+                      value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"
+                      style="width:300px;">
                     <button type="submit" class="btn btn-primary mr-2">Search</button>
                     <a href="quick_search.php" class="btn btn-secondary">Reset</a>
                   </form>
@@ -210,7 +257,7 @@ if ($_SESSION['level_id'] == 1 || $_SESSION['level_id'] == 4) {
                     </table>
                   </div>
 
-                  <!-- Letters Delivered (unchanged columns) -->
+                  <!-- Letters Delivered -->
                   <?php if ($result_delivery): ?>
                     <h5>Letters Delivered</h5>
                     <div class="table-responsive">
