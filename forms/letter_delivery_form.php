@@ -5,7 +5,7 @@ check_access([1, 4]); // Developer or Admin Staff
 
 $success = $error = "";
 
-/* ---------------- Lookup options for the dropdowns ---------------- */
+/* ---------------- Lookup options (ONLY Letters Sent) ---------------- */
 $ls_options = [];
 $sql_sent = "
   SELECT ls.letter_sent_id, c.company_name, ls.sent_date
@@ -17,100 +17,51 @@ if ($res = $conn->query($sql_sent)) {
   while ($row = $res->fetch_assoc()) { $ls_options[] = $row; }
 }
 
-$lr_options = [];
-$sql_recv = "
-  SELECT lr.letter_received_id, c.company_name, lr.received_date
-  FROM letters_received lr
-  LEFT JOIN clients c ON c.client_id = lr.client_id
-  ORDER BY lr.received_date DESC
-";
-if ($res = $conn->query($sql_recv)) {
-  while ($row = $res->fetch_assoc()) { $lr_options[] = $row; }
-}
-
-/* ------------- Detect whether the DB has letter_received_id ------------- */
-$has_received_col = false;
-if ($check = $conn->query("SHOW COLUMNS FROM letters_delivered LIKE 'letter_received_id'")) {
-  $has_received_col = (bool)$check->num_rows;
-  $check->close();
-}
-
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
   $delivery_id = "LD" . str_pad(rand(1, 99999), 5, '0', STR_PAD_LEFT);
 
-  // letter_ref comes as "S|id" or "R|id"
+  // We only accept letters from "Letters Sent".
+  // The select stores values like "S|<id>" (or just "<id>" if you ever change it).
   $letter_sent_id = null;
-  $letter_received_id = null;
-  if (!empty($_POST['letter_ref']) && strpos($_POST['letter_ref'], '|') !== false) {
-    list($type, $id) = explode('|', $_POST['letter_ref'], 2);
-    if ($type === 'S') {
-      $letter_sent_id = $id;
-    } elseif ($type === 'R') {
-      $letter_received_id = $id;
+  if (!empty($_POST['letter_ref'])) {
+    $raw = $_POST['letter_ref'];
+    if (strpos($raw, '|') !== false) {
+      list($type, $id) = explode('|', $raw, 2);
+      if ($type === 'S') $letter_sent_id = $id;
+    } else {
+      // Fallback if you ever post just the ID
+      $letter_sent_id = $raw;
     }
   }
 
-  // If the table doesn't support letter_received_id, stop early when user chose an "R|..."
-  if (!$has_received_col && $letter_received_id) {
-    $error = "Your current database table 'letters_delivered' does not have a 'letter_received_id' column. "
-           . "Please select a letter from the 'Letters Sent' list.";
+  if (!$letter_sent_id) {
+    $error = "Please select a letter from the 'Letters Sent' list.";
   } else {
-    // Build the correct INSERT based on schema
-    if ($has_received_col) {
-      $sql = "INSERT INTO letters_delivered
-        (delivery_id, letter_sent_id, letter_received_id, collection_date, delivered_date, delivery_method,
-         tracking_number, ad_staff_id, ad_signature, status, remark)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-      $stmt = $conn->prepare($sql);
-      if (!$stmt) {
-        $error = "Prepare failed: " . $conn->error;
-      } else {
-        $stmt->bind_param(
-          "sssssssssss",
-          $delivery_id,
-          $letter_sent_id,
-          $letter_received_id,       // may be NULL
-          $_POST['collection_date'],
-          $_POST['delivered_date'],
-          $_POST['delivery_method'],
-          $_POST['tracking_number'],
-          $_POST['ad_staff_id'],
-          $_POST['ad_signature'],
-          $_POST['status'],
-          $_POST['remark']
-        );
-      }
+    // Insert WITHOUT letter_received_id (matches your DB schema)
+    $sql = "INSERT INTO letters_delivered
+      (delivery_id, letter_sent_id, collection_date, delivered_date, delivery_method,
+       tracking_number, ad_staff_id, ad_signature, status, remark)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+      $error = "Prepare failed: " . $conn->error;
     } else {
-      // No letter_received_id column in this schema
-      $sql = "INSERT INTO letters_delivered
-        (delivery_id, letter_sent_id, collection_date, delivered_date, delivery_method,
-         tracking_number, ad_staff_id, ad_signature, status, remark)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-      $stmt = $conn->prepare($sql);
-      if (!$stmt) {
-        $error = "Prepare failed: " . $conn->error;
-      } else {
-        $stmt->bind_param(
-          "ssssssssss",
-          $delivery_id,
-          $letter_sent_id,
-          $_POST['collection_date'],
-          $_POST['delivered_date'],
-          $_POST['delivery_method'],
-          $_POST['tracking_number'],
-          $_POST['ad_staff_id'],
-          $_POST['ad_signature'],
-          $_POST['status'],
-          $_POST['remark']
-        );
-      }
-    }
-
-    if (empty($error) && $stmt) {
+      $stmt->bind_param(
+        "ssssssssss",
+        $delivery_id,
+        $letter_sent_id,
+        $_POST['collection_date'],
+        $_POST['delivered_date'],
+        $_POST['delivery_method'],
+        $_POST['tracking_number'],
+        $_POST['ad_staff_id'],
+        $_POST['ad_signature'],
+        $_POST['status'],
+        $_POST['remark']
+      );
       if ($stmt->execute()) {
         $success = "Letter delivery recorded successfully!";
-        // optionally clear POST so the form resets
-        $_POST = [];
+        $_POST = []; // reset form after success
       } else {
         $error = "Error saving delivery: " . $stmt->error;
       }
@@ -161,46 +112,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                   <form method="post" class="pt-3" autocomplete="off">
                     <div class="row">
 
-                      <!-- COMBINED DROPDOWN -->
+                      <!-- Letters Sent ONLY -->
                       <div class="col-md-6 form-group">
-                        <label>Letter (Sent or Received)</label>
+                        <label>Letter (Sent)</label>
                         <select name="letter_ref" class="form-control" required>
                           <option value="">-- Select Letter --</option>
-
-                          <optgroup label="Letters Sent">
-                            <?php foreach ($ls_options as $opt):
-                              $val = 'S|' . $opt['letter_sent_id'];
-                              $label = $opt['letter_sent_id']
-                                     . ' — ' . ($opt['company_name'] ?: 'Unknown Company')
-                                     . ' — ' . ($opt['sent_date'] ?: '');
-                              $sel = (($_POST['letter_ref'] ?? '') === $val) ? 'selected' : '';
-                            ?>
-                              <option value="<?= htmlspecialchars($val) ?>" <?= $sel ?>>
-                                <?= htmlspecialchars($label) ?>
-                              </option>
-                            <?php endforeach; ?>
-                          </optgroup>
-
-                          <optgroup label="Letters Received">
-                            <?php foreach ($lr_options as $opt):
-                              $val = 'R|' . $opt['letter_received_id'];
-                              $label = $opt['letter_received_id']
-                                     . ' — ' . ($opt['company_name'] ?: 'Unknown Company')
-                                     . ' — ' . ($opt['received_date'] ?: '');
-                              $sel = (($_POST['letter_ref'] ?? '') === $val) ? 'selected' : '';
-                            ?>
-                              <option value="<?= htmlspecialchars($val) ?>" <?= $sel ?>>
-                                <?= htmlspecialchars($label) ?>
-                              </option>
-                            <?php endforeach; ?>
-                          </optgroup>
+                          <?php foreach ($ls_options as $opt):
+                            $val = 'S|' . $opt['letter_sent_id']; // keep "S|" so back-compat parsing still works
+                            $label = $opt['letter_sent_id']
+                                   . ' — ' . ($opt['company_name'] ?: 'Unknown Company')
+                                   . ' — ' . ($opt['sent_date'] ?: '');
+                            $sel = (($_POST['letter_ref'] ?? '') === $val) ? 'selected' : '';
+                          ?>
+                            <option value="<?= htmlspecialchars($val) ?>" <?= $sel ?>>
+                              <?= htmlspecialchars($label) ?>
+                            </option>
+                          <?php endforeach; ?>
                         </select>
-
-                        <?php if (!$has_received_col): ?>
-                          <small class="form-text text-muted">
-                            Note: your current database schema supports deliveries for <strong>Letters Sent</strong> only.
-                          </small>
-                        <?php endif; ?>
                       </div>
 
                       <div class="col-md-6 form-group">
@@ -220,8 +148,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <select name="delivery_method" class="form-control" required>
                           <?php
                             $dm = $_POST['delivery_method'] ?? '';
-                            $opts = ['Courier','Dispatch'];
-                            foreach ($opts as $o) {
+                            foreach (['Courier','Dispatch'] as $o) {
                               $sel = ($dm === $o) ? 'selected' : '';
                               echo "<option value=\"".htmlspecialchars($o)."\" $sel>".htmlspecialchars($o)."</option>";
                             }
