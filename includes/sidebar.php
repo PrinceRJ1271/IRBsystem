@@ -134,7 +134,7 @@ $isAdmin  = ((int)$level_id === 4);
       <li class="nav-divider"></li>
     <?php endif; ?>
 
-    <?php if ($isDev || $isMgr || $isAdmin): ?>
+    <?php if ($isDev || $isAdmin): ?>
       <li class="nav-item nav-category">DELIVERY</li>
       <li class="nav-item">
         <a class="nav-link" href="/forms/letter_delivery_form.php">
