@@ -104,8 +104,9 @@ $stmt2->execute();
 $result_sent = $stmt2->get_result();
 
 /* -------------------- Letters Delivered (JOIN to show names like other tables) -------------------- */
+/* Now visible to all roles (1–4) for read-only search/view */
 $result_delivery = null;
-if ($_SESSION['level_id'] == 1 || $_SESSION['level_id'] == 4) {
+if (in_array((int)($_SESSION['level_id'] ?? 0), [1, 2, 3, 4], true)) {
     $sql_delivery = "
       SELECT
         ld.delivery_id,
