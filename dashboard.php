@@ -492,7 +492,7 @@ $fu_completed = max(0, ($kpis['recv_month'] + $kpis['sent_month']) - $kpis['pend
     new Chart(donutCtx, {
       type: 'doughnut',
       data: {
-        labels:['Pending','Completed-ish'],
+        labels:['Pending','Completed'],
         datasets:[{ data: fuData, backgroundColor: ['#FF7A7A','#00C19C'] }]
       },
       options:{
