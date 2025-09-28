@@ -21,7 +21,6 @@
 
   /* ------------------ Auto-fit body (no fixed width/height inline) ------------------ */
   function fitBody() {
-    // Let CSS clamp control the panel size. We only ensure the body scroll area is correct.
     const header = el.root.querySelector('.ai-chat__header');
     const footer = el.root.querySelector('.ai-chat__footer');
     const total  = el.root.getBoundingClientRect().height;
@@ -31,18 +30,15 @@
     if (el.body) el.body.style.maxHeight = maxBody + 'px';
   }
 
-  // Run now and whenever the panel size changes (zoom triggers ResizeObserver reliably)
   fitBody();
   const ro = new ResizeObserver(fitBody);
   ro.observe(el.root);
   window.addEventListener('orientationchange', () => setTimeout(fitBody, 150));
   window.addEventListener('resize', () => setTimeout(fitBody, 50)); // fallback
 
-  // Re-apply when opening from launcher (in case viewport changed)
   function openPanel() {
     el.root.style.display = 'flex';
     el.launcher.style.display = 'none';
-    // Clear inline height unless the user manually resized (so CSS can auto-fit)
     if (!userResized) el.root.style.height = '';
     fitBody();
   }

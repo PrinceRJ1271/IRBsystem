@@ -24,10 +24,10 @@
   right: 24px;
   bottom: 24px;
 
-  /* ⬇️ Fully responsive: width/height follow viewport & zoom */
+  /* Slightly reduced default height */
   width: clamp(260px, 26vw, 380px);
   max-width: calc(100vw - 32px);
-  height: clamp(320px, 72dvh, 82dvh);
+  height: clamp(280px, 64dvh, 76dvh);
   max-height: calc(100dvh - 32px);
 
   background: var(--ai-card);
@@ -42,7 +42,7 @@
 /* Prefer small/dynamic viewport units where supported (better with browser UI changes) */
 @supports (height: 100svh) {
   #aiChat{
-    height: clamp(320px, 72svh, 82svh);
+    height: clamp(280px, 64svh, 76svh); /* reduced */
     max-height: calc(100svh - 32px);
   }
 }
@@ -77,7 +77,7 @@
 
 /* Body */
 .ai-chat__body{
-  flex: 1 1 auto;           /* <- this lets the body auto-fit between header & footer */
+  flex: 1 1 auto;           /* auto-fit between header & footer */
   overflow: auto;
   padding: 16px 14px;
   background: #f8f9fc;
