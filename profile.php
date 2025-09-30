@@ -20,7 +20,6 @@ function verifyCsrfToken($token)
 }
 function cleanFilename($name)
 {
-    // keep extension, sanitize basename
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
     $base = pathinfo($name, PATHINFO_FILENAME);
     $base = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $base);
@@ -42,8 +41,15 @@ function getUserData($conn, $user_id)
 }
 
 $user = getUserData($conn, $user_id);
-$profile_path = $user['profile_pic'] ?? '';
-$display_pic = !empty($profile_path) ? $profile_path : 'assets/images/uploads/default.png';
+
+// Profile picture priority: session > db > default
+if (!empty($_SESSION['profile_pic'])) {
+    $display_pic = $_SESSION['profile_pic'];
+} elseif (!empty($user['profile_pic'])) {
+    $display_pic = $user['profile_pic'];
+} else {
+    $display_pic = 'assets/images/uploads/default.png';
+}
 
 ensureCsrfToken();
 
@@ -119,10 +125,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($stmt->execute()) {
-                $_SESSION['profile_pic'] = $target_file;
+                $_SESSION['profile_pic'] = $target_file; // always sync session
                 $success = "✅ Profile updated successfully.";
                 $user = getUserData($conn, $user_id);
-                $display_pic = !empty($user['profile_pic']) ? $user['profile_pic'] : 'assets/images/uploads/default.png';
+
+                // Recalculate display pic
+                $display_pic = !empty($_SESSION['profile_pic']) ? $_SESSION['profile_pic'] : 'assets/images/uploads/default.png';
+
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             } else {
                 $error = "❌ Update failed. Please try again.";
