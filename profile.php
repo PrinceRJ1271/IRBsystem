@@ -57,17 +57,13 @@ if ($user) {
     $_SESSION['user_email']        = $_SESSION['user_email']        ?? ($user['user_email'] ?? null);
 }
 
-/* ---------- Profile picture resolution (FIX: reliable default fallback) ---------- */
-$defaultPic = 'assets/images/uploads/default.png';
-$candidatePic = !empty($_SESSION['profile_pic'])
-    ? $_SESSION['profile_pic']
-    : ($user['profile_pic'] ?? '');
-$display_pic = $defaultPic;
-if (!empty($candidatePic)) {
-    $absPath = __DIR__ . '/' . ltrim($candidatePic, '/');
-    if (file_exists($absPath)) {
-        $display_pic = $candidatePic;
-    }
+/* Profile picture priority: session > db > default */
+if (!empty($_SESSION['profile_pic'])) {
+    $display_pic = $_SESSION['profile_pic'];
+} elseif (!empty($user['profile_pic'])) {
+    $display_pic = $user['profile_pic'];
+} else {
+    $display_pic = 'assets/images/uploads/default.png';
 }
 
 ensureCsrfToken();
@@ -171,16 +167,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Refresh user data for display
                 $user = getUserDataByKey($conn, $whereSql, $whereType, $whereVal);
 
-                // Recalculate display pic with the same reliable fallback
-                $candidatePic = !empty($_SESSION['profile_pic'])
-                    ? $_SESSION['profile_pic']
-                    : ($user['profile_pic'] ?? '');
-                $display_pic = $defaultPic;
-                if (!empty($candidatePic)) {
-                    $absPath = __DIR__ . '/' . ltrim($candidatePic, '/');
-                    if (file_exists($absPath)) {
-                        $display_pic = $candidatePic;
-                    }
+                // Recalculate display pic
+                if (!empty($_SESSION['profile_pic'])) {
+                    $display_pic = $_SESSION['profile_pic'];
+                } elseif (!empty($user['profile_pic'])) {
+                    $display_pic = $user['profile_pic'];
+                } else {
+                    $display_pic = 'assets/images/uploads/default.png';
                 }
 
                 // Rotate CSRF token
