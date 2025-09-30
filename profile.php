@@ -255,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <div class="form-group">
                                         <label>Phone Number</label>
                                         <input type="text" name="user_phonenumber" class="form-control" required
-                                               value="<?= htmlspecialchars($user['user_phonenumber']) ?>" placeholder="Enter phone number">
+                                               value="<?= htmlspecialchars($_POST['user_phonenumber'] ?? $user['user_phonenumber']) ?>" placeholder="Enter phone number">
                                     </div>
 
                                     <div class="form-group password-toggle">
