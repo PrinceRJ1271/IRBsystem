@@ -20,7 +20,7 @@ function verifyCsrfToken($token)
 }
 function cleanFilename($name)
 {
-    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    $ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION));
     $base = pathinfo($name, PATHINFO_FILENAME);
     $base = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $base);
     return $base . '.' . $ext;
@@ -43,8 +43,9 @@ function getUserData($conn, $user_id)
 $user = getUserData($conn, $user_id);
 
 /* Keep frequently used profile fields in session so they appear instantly */
-$_SESSION['profile_pic']      = $_SESSION['profile_pic']      ?? ($user['profile_pic'] ?? null);
-$_SESSION['user_phonenumber'] = $_SESSION['user_phonenumber'] ?? ($user['user_phonenumber'] ?? null);
+$_SESSION['profile_pic']       = $_SESSION['profile_pic']       ?? ($user['profile_pic'] ?? null);
+$_SESSION['user_phonenumber']  = $_SESSION['user_phonenumber']  ?? ($user['user_phonenumber'] ?? null);
+$_SESSION['user_email']        = $_SESSION['user_email']        ?? ($user['user_email'] ?? null);
 
 /* Profile picture priority: session > db > default */
 if (!empty($_SESSION['profile_pic'])) {
@@ -144,11 +145,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($stmt->execute()) {
-                // Sync session mirrors
+                // Sync session mirrors (so UI shows new data immediately even if browser tries to autofill)
                 if ($uploading_new_image) {
                     $_SESSION['profile_pic'] = $target_file;
                 }
                 $_SESSION['user_phonenumber'] = $phone;
+                $_SESSION['user_email']       = $email;
 
                 $success = "✅ Profile updated successfully.";
                 // Refresh user data for display
@@ -173,7 +175,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /* Value helpers for the form (prefer POST → session → DB) */
-$phone_value = $_POST['user_phonenumber'] ?? ($_SESSION['user_phonenumber'] ?? ($user['user_phonenumber'] ?? ''));
+$email_value = $_POST['user_email']        ?? ($_SESSION['user_email']       ?? ($user['user_email'] ?? ''));
+$phone_value = $_POST['user_phonenumber']  ?? ($_SESSION['user_phonenumber'] ?? ($user['user_phonenumber'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -199,6 +202,16 @@ $phone_value = $_POST['user_phonenumber'] ?? ($_SESSION['user_phonenumber'] ?? (
         .password-toggle-icon {
             position: absolute; top: 50%; right: 15px; transform: translateY(-50%);
             cursor: pointer; color: #6c757d;
+        }
+        /* Neutralize Chrome autofill tint so fields don't look "different color" */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        textarea:-webkit-autofill,
+        select:-webkit-autofill {
+            -webkit-box-shadow: 0 0 0px 1000px #fff inset !important;
+            -webkit-text-fill-color: inherit !important;
+            transition: background-color 9999s ease-in-out 0s;
         }
     </style>
 </head>
@@ -230,6 +243,11 @@ $phone_value = $_POST['user_phonenumber'] ?? ($_SESSION['user_phonenumber'] ?? (
 
                                 <form method="post" enctype="multipart/form-data" autocomplete="off" novalidate>
                                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+
+                                    <!-- Some browsers ignore autocomplete=off on the form. Dummy fields help tame autofill. -->
+                                    <input type="text" style="display:none" autocomplete="username">
+                                    <input type="password" style="display:none" autocomplete="new-password">
+
                                     <div class="text-center mb-4">
                                         <img id="previewImage" src="<?= htmlspecialchars($display_pic) ?>" class="profile-img mb-2" alt="Profile Picture">
                                         <h5 class="text-primary mt-2"><?= htmlspecialchars($user['username']) ?></h5>
@@ -237,19 +255,38 @@ $phone_value = $_POST['user_phonenumber'] ?? ($_SESSION['user_phonenumber'] ?? (
 
                                     <div class="form-group">
                                         <label>Email address</label>
-                                        <input type="email" name="user_email" class="form-control" required
-                                               value="<?= htmlspecialchars($user['user_email']) ?>" placeholder="Enter email">
+                                        <input
+                                            type="email"
+                                            name="user_email"
+                                            class="form-control"
+                                            autocomplete="email"
+                                            required
+                                            value="<?= htmlspecialchars($email_value) ?>"
+                                            placeholder="Enter email">
                                     </div>
 
                                     <div class="form-group">
                                         <label>Phone Number</label>
-                                        <input type="text" name="user_phonenumber" class="form-control" required
-                                               value="<?= htmlspecialchars($phone_value) ?>" placeholder="Enter phone number">
+                                        <input
+                                            type="text"
+                                            name="user_phonenumber"
+                                            class="form-control"
+                                            inputmode="tel"
+                                            autocomplete="tel"
+                                            required
+                                            value="<?= htmlspecialchars($phone_value) ?>"
+                                            placeholder="Enter phone number">
                                     </div>
 
                                     <div class="form-group password-toggle">
                                         <label>New Password <small>(leave blank to keep current)</small></label>
-                                        <input type="password" name="user_password" class="form-control" id="passwordInput" placeholder="Enter new password">
+                                        <input
+                                            type="password"
+                                            name="user_password"
+                                            class="form-control"
+                                            id="passwordInput"
+                                            autocomplete="new-password"
+                                            placeholder="Enter new password">
                                         <i class="mdi mdi-eye-off password-toggle-icon" id="togglePassword"></i>
                                     </div>
 
@@ -305,6 +342,16 @@ $phone_value = $_POST['user_phonenumber'] ?? ($_SESSION['user_phonenumber'] ?? (
             icon.classList.add("mdi-eye-off");
         }
     });
+
+    // Force server-side values after load to override aggressive browser autofill
+    (function() {
+        const emailValue = <?= json_encode($email_value) ?>;
+        const phoneValue = <?= json_encode($phone_value) ?>;
+        const emailInput = document.querySelector('input[name="user_email"]');
+        const phoneInput = document.querySelector('input[name="user_phonenumber"]');
+        if (emailInput) emailInput.value = emailValue || '';
+        if (phoneInput) phoneInput.value = phoneValue || '';
+    })();
 </script>
 </body>
 </html>
