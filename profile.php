@@ -61,10 +61,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim($_POST['user_email'] ?? '');
         $phone = trim($_POST['user_phonenumber'] ?? '');
         $new_password = trim($_POST['user_password'] ?? '');
-        $target_file = $user['profile_pic']; // keep existing by default
+
+        // Keep existing file value by default (from DB)
+        $current_pic = $user['profile_pic'];
+
+        // Are we uploading a new image this time?
+        $uploading_new_image = (!empty($_FILES['profile_pic']['name']));
+
+        $target_file = $current_pic; // default to what's already stored
 
         // --- Validate & process image upload (optional) ---
-        if (empty($error) && !empty($_FILES['profile_pic']['name'])) {
+        if (empty($error) && $uploading_new_image) {
             $upload_dir = "assets/images/uploads";
             if (!is_dir($upload_dir)) {
                 @mkdir($upload_dir, 0750, true);
@@ -101,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $error = "❌ Failed to upload image.";
                             } else {
                                 @chmod($dest, 0640);
-                                $target_file = $dest;
+                                $target_file = $dest; // New image path
                             }
                         }
                     }
@@ -111,27 +118,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- Update DB if no errors ---
         if (empty($error)) {
-            if (!empty($new_password)) {
+            // Build the UPDATE in simple cases to avoid touching profile_pic unless needed
+            if ($uploading_new_image && !empty($new_password)) {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
                 $stmt = $conn->prepare("UPDATE users 
                     SET user_email = ?, user_phonenumber = ?, profile_pic = ?, password = ? 
                     WHERE id = ?");
                 $stmt->bind_param("ssssi", $email, $phone, $target_file, $hashed_password, $user_id);
-            } else {
+            } elseif ($uploading_new_image && empty($new_password)) {
                 $stmt = $conn->prepare("UPDATE users 
                     SET user_email = ?, user_phonenumber = ?, profile_pic = ? 
                     WHERE id = ?");
                 $stmt->bind_param("sssi", $email, $phone, $target_file, $user_id);
+            } elseif (!$uploading_new_image && !empty($new_password)) {
+                $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+                $stmt = $conn->prepare("UPDATE users 
+                    SET user_email = ?, user_phonenumber = ?, password = ? 
+                    WHERE id = ?");
+                $stmt->bind_param("sssi", $email, $phone, $hashed_password, $user_id);
+            } else {
+                // No new image, no new password -> DO NOT touch profile_pic
+                $stmt = $conn->prepare("UPDATE users 
+                    SET user_email = ?, user_phonenumber = ? 
+                    WHERE id = ?");
+                $stmt->bind_param("ssi", $email, $phone, $user_id);
             }
 
             if ($stmt->execute()) {
-                $_SESSION['profile_pic'] = $target_file; // always sync session
+                // Only update session image if a new image was uploaded
+                if ($uploading_new_image) {
+                    $_SESSION['profile_pic'] = $target_file;
+                }
+
                 $success = "✅ Profile updated successfully.";
+                // Refresh user data for the form display
                 $user = getUserData($conn, $user_id);
 
-                // Recalculate display pic
-                $display_pic = !empty($_SESSION['profile_pic']) ? $_SESSION['profile_pic'] : 'assets/images/uploads/default.png';
+                // Recalculate display pic: session > db > default
+                if (!empty($_SESSION['profile_pic'])) {
+                    $display_pic = $_SESSION['profile_pic'];
+                } elseif (!empty($user['profile_pic'])) {
+                    $display_pic = $user['profile_pic'];
+                } else {
+                    $display_pic = 'assets/images/uploads/default.png';
+                }
 
+                // Rotate CSRF token
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             } else {
                 $error = "❌ Update failed. Please try again.";
