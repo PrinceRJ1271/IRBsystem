@@ -42,7 +42,11 @@ function getUserData($conn, $user_id)
 
 $user = getUserData($conn, $user_id);
 
-// Profile picture priority: session > db > default
+/* Keep frequently used profile fields in session so they appear instantly */
+$_SESSION['profile_pic']      = $_SESSION['profile_pic']      ?? ($user['profile_pic'] ?? null);
+$_SESSION['user_phonenumber'] = $_SESSION['user_phonenumber'] ?? ($user['user_phonenumber'] ?? null);
+
+/* Profile picture priority: session > db > default */
 if (!empty($_SESSION['profile_pic'])) {
     $display_pic = $_SESSION['profile_pic'];
 } elseif (!empty($user['profile_pic'])) {
@@ -58,17 +62,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = "❌ Invalid session token. Please refresh and try again.";
     } else {
-        $email = trim($_POST['user_email'] ?? '');
-        $phone = trim($_POST['user_phonenumber'] ?? '');
+        $email        = trim($_POST['user_email'] ?? '');
+        $phone        = trim($_POST['user_phonenumber'] ?? '');
         $new_password = trim($_POST['user_password'] ?? '');
 
         // Keep existing file value by default (from DB)
         $current_pic = $user['profile_pic'];
-
-        // Are we uploading a new image this time?
         $uploading_new_image = (!empty($_FILES['profile_pic']['name']));
-
-        $target_file = $current_pic; // default to what's already stored
+        $target_file = $current_pic;
 
         // --- Validate & process image upload (optional) ---
         if (empty($error) && $uploading_new_image) {
@@ -78,15 +79,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $max_file_size = 5 * 1024 * 1024;
-            $tmp_name = $_FILES['profile_pic']['tmp_name'];
+            $tmp_name  = $_FILES['profile_pic']['tmp_name'];
             $orig_name = $_FILES['profile_pic']['name'];
-            $size = (int)($_FILES['profile_pic']['size'] ?? 0);
+            $size      = (int)($_FILES['profile_pic']['size'] ?? 0);
 
             if ($size <= 0 || $size > $max_file_size) {
                 $error = "❌ Image must be between 1 byte and 5MB.";
             } else {
                 $finfo = new finfo(FILEINFO_MIME_TYPE);
-                $mime = $finfo->file($tmp_name);
+                $mime  = $finfo->file($tmp_name);
                 $allowed_mimes = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
                 if (!array_key_exists($mime, $allowed_mimes)) {
                     $error = "❌ Only JPG, PNG, or GIF images are allowed.";
@@ -100,15 +101,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $error = "❌ Image dimensions are not acceptable.";
                         } else {
                             $safeOrig = cleanFilename($orig_name);
-                            $rand = bin2hex(random_bytes(4));
+                            $rand     = bin2hex(random_bytes(4));
                             $filename = time() . "_" . $rand . "_" . $safeOrig;
-                            $dest = rtrim($upload_dir, '/') . '/' . $filename;
+                            $dest     = rtrim($upload_dir, '/') . '/' . $filename;
 
                             if (!move_uploaded_file($tmp_name, $dest)) {
                                 $error = "❌ Failed to upload image.";
                             } else {
                                 @chmod($dest, 0640);
-                                $target_file = $dest; // New image path
+                                $target_file = $dest;
                             }
                         }
                     }
@@ -118,7 +119,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- Update DB if no errors ---
         if (empty($error)) {
-            // Build the UPDATE in simple cases to avoid touching profile_pic unless needed
             if ($uploading_new_image && !empty($new_password)) {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
                 $stmt = $conn->prepare("UPDATE users 
@@ -137,7 +137,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     WHERE id = ?");
                 $stmt->bind_param("sssi", $email, $phone, $hashed_password, $user_id);
             } else {
-                // No new image, no new password -> DO NOT touch profile_pic
                 $stmt = $conn->prepare("UPDATE users 
                     SET user_email = ?, user_phonenumber = ? 
                     WHERE id = ?");
@@ -145,16 +144,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($stmt->execute()) {
-                // Only update session image if a new image was uploaded
+                // Sync session mirrors
                 if ($uploading_new_image) {
                     $_SESSION['profile_pic'] = $target_file;
                 }
+                $_SESSION['user_phonenumber'] = $phone;
 
                 $success = "✅ Profile updated successfully.";
-                // Refresh user data for the form display
+                // Refresh user data for display
                 $user = getUserData($conn, $user_id);
 
-                // Recalculate display pic: session > db > default
+                // Recalculate display pic
                 if (!empty($_SESSION['profile_pic'])) {
                     $display_pic = $_SESSION['profile_pic'];
                 } elseif (!empty($user['profile_pic'])) {
@@ -171,6 +171,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+/* Value helpers for the form (prefer POST → session → DB) */
+$phone_value = $_POST['user_phonenumber'] ?? ($_SESSION['user_phonenumber'] ?? ($user['user_phonenumber'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -189,27 +192,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-radius: 50%;
             border: 4px solid #f3f6f9;
         }
-        .page-title {
-            font-weight: 600;
-            color: #4B49AC;
-        }
-        .card {
-            border-radius: 1rem;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-        .form-group label {
-            font-weight: 500;
-        }
-        .password-toggle {
-            position: relative;
-        }
+        .page-title { font-weight: 600; color: #4B49AC; }
+        .card { border-radius: 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .form-group label { font-weight: 500; }
+        .password-toggle { position: relative; }
         .password-toggle-icon {
-            position: absolute;
-            top: 50%;
-            right: 15px;
-            transform: translateY(-50%);
-            cursor: pointer;
-            color: #6c757d;
+            position: absolute; top: 50%; right: 15px; transform: translateY(-50%);
+            cursor: pointer; color: #6c757d;
         }
     </style>
 </head>
@@ -255,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <div class="form-group">
                                         <label>Phone Number</label>
                                         <input type="text" name="user_phonenumber" class="form-control" required
-                                               value="<?= htmlspecialchars($_POST['user_phonenumber'] ?? $user['user_phonenumber']) ?>" placeholder="Enter phone number">
+                                               value="<?= htmlspecialchars($phone_value) ?>" placeholder="Enter phone number">
                                     </div>
 
                                     <div class="form-group password-toggle">
