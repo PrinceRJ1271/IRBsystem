@@ -27,25 +27,35 @@ function cleanFilename($name)
 }
 
 /* ---------- App state ---------- */
-$user_id = (int)$_SESSION['user_id'];
+/* IMPORTANT: do NOT cast to int — the session might hold a string user_id */
+$user_session_key = $_SESSION['user_id'];
+// Decide which column to use for this session: numeric -> id, string -> user_id
+$is_numeric_key = ctype_digit((string)$user_session_key);
+$whereSql  = $is_numeric_key ? "id = ?" : "user_id = ?";
+$whereType = $is_numeric_key ? "i" : "s";
+$whereVal  = $is_numeric_key ? (int)$user_session_key : (string)$user_session_key;
+
 $error = '';
 $success = '';
 
 /* ---------- Fetch user ---------- */
-function getUserData($conn, $user_id)
+function getUserDataByKey($conn, $whereSql, $whereType, $whereVal)
 {
-    $stmt = $conn->prepare("SELECT username, user_email, user_phonenumber, profile_pic FROM users WHERE id = ?");
-    $stmt->bind_param("i", $user_id);
+    $sql = "SELECT username, user_email, user_phonenumber, profile_pic FROM users WHERE $whereSql LIMIT 1";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($whereType, $whereVal);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
 }
 
-$user = getUserData($conn, $user_id);
+$user = getUserDataByKey($conn, $whereSql, $whereType, $whereVal);
 
 /* Keep frequently used profile fields in session so they appear instantly */
-$_SESSION['profile_pic']       = $_SESSION['profile_pic']       ?? ($user['profile_pic'] ?? null);
-$_SESSION['user_phonenumber']  = $_SESSION['user_phonenumber']  ?? ($user['user_phonenumber'] ?? null);
-$_SESSION['user_email']        = $_SESSION['user_email']        ?? ($user['user_email'] ?? null);
+if ($user) {
+    $_SESSION['profile_pic']       = $_SESSION['profile_pic']       ?? ($user['profile_pic'] ?? null);
+    $_SESSION['user_phonenumber']  = $_SESSION['user_phonenumber']  ?? ($user['user_phonenumber'] ?? null);
+    $_SESSION['user_email']        = $_SESSION['user_email']        ?? ($user['user_email'] ?? null);
+}
 
 /* Profile picture priority: session > db > default */
 if (!empty($_SESSION['profile_pic'])) {
@@ -68,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $new_password = trim($_POST['user_password'] ?? '');
 
         // Keep existing file value by default (from DB)
-        $current_pic = $user['profile_pic'];
+        $current_pic = $user['profile_pic'] ?? null;
         $uploading_new_image = (!empty($_FILES['profile_pic']['name']));
         $target_file = $current_pic;
 
@@ -122,30 +132,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($error)) {
             if ($uploading_new_image && !empty($new_password)) {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                $stmt = $conn->prepare("UPDATE users 
-                    SET user_email = ?, user_phonenumber = ?, profile_pic = ?, password = ? 
-                    WHERE id = ?");
-                $stmt->bind_param("ssssi", $email, $phone, $target_file, $hashed_password, $user_id);
+                $sql = "UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ?, password = ? WHERE $whereSql";
+                $stmt = $conn->prepare($sql);
+                $types = "ssss" . $whereType;
+                $stmt->bind_param($types, $email, $phone, $target_file, $hashed_password, $whereVal);
             } elseif ($uploading_new_image && empty($new_password)) {
-                $stmt = $conn->prepare("UPDATE users 
-                    SET user_email = ?, user_phonenumber = ?, profile_pic = ? 
-                    WHERE id = ?");
-                $stmt->bind_param("sssi", $email, $phone, $target_file, $user_id);
+                $sql = "UPDATE users SET user_email = ?, user_phonenumber = ?, profile_pic = ? WHERE $whereSql";
+                $stmt = $conn->prepare($sql);
+                $types = "sss" . $whereType;
+                $stmt->bind_param($types, $email, $phone, $target_file, $whereVal);
             } elseif (!$uploading_new_image && !empty($new_password)) {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                $stmt = $conn->prepare("UPDATE users 
-                    SET user_email = ?, user_phonenumber = ?, password = ? 
-                    WHERE id = ?");
-                $stmt->bind_param("sssi", $email, $phone, $hashed_password, $user_id);
+                $sql = "UPDATE users SET user_email = ?, user_phonenumber = ?, password = ? WHERE $whereSql";
+                $stmt = $conn->prepare($sql);
+                $types = "sss" . $whereType;
+                $stmt->bind_param($types, $email, $phone, $hashed_password, $whereVal);
             } else {
-                $stmt = $conn->prepare("UPDATE users 
-                    SET user_email = ?, user_phonenumber = ? 
-                    WHERE id = ?");
-                $stmt->bind_param("ssi", $email, $phone, $user_id);
+                $sql = "UPDATE users SET user_email = ?, user_phonenumber = ? WHERE $whereSql";
+                $stmt = $conn->prepare($sql);
+                $types = "ss" . $whereType;
+                $stmt->bind_param($types, $email, $phone, $whereVal);
             }
 
             if ($stmt->execute()) {
-                // Sync session mirrors (so UI shows new data immediately even if browser tries to autofill)
+                // Sync session mirrors (so UI shows new data immediately)
                 if ($uploading_new_image) {
                     $_SESSION['profile_pic'] = $target_file;
                 }
@@ -153,8 +163,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_email']       = $email;
 
                 $success = "✅ Profile updated successfully.";
+
                 // Refresh user data for display
-                $user = getUserData($conn, $user_id);
+                $user = getUserDataByKey($conn, $whereSql, $whereType, $whereVal);
 
                 // Recalculate display pic
                 if (!empty($_SESSION['profile_pic'])) {
@@ -244,13 +255,13 @@ $phone_value = $_POST['user_phonenumber']  ?? ($_SESSION['user_phonenumber'] ?? 
                                 <form method="post" enctype="multipart/form-data" autocomplete="off" novalidate>
                                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 
-                                    <!-- Some browsers ignore autocomplete=off on the form. Dummy fields help tame autofill. -->
+                                    <!-- Dummy fields help tame aggressive autofill -->
                                     <input type="text" style="display:none" autocomplete="username">
                                     <input type="password" style="display:none" autocomplete="new-password">
 
                                     <div class="text-center mb-4">
                                         <img id="previewImage" src="<?= htmlspecialchars($display_pic) ?>" class="profile-img mb-2" alt="Profile Picture">
-                                        <h5 class="text-primary mt-2"><?= htmlspecialchars($user['username']) ?></h5>
+                                        <h5 class="text-primary mt-2"><?= htmlspecialchars($user['username'] ?? '') ?></h5>
                                     </div>
 
                                     <div class="form-group">
@@ -342,16 +353,6 @@ $phone_value = $_POST['user_phonenumber']  ?? ($_SESSION['user_phonenumber'] ?? 
             icon.classList.add("mdi-eye-off");
         }
     });
-
-    // Force server-side values after load to override aggressive browser autofill
-    (function() {
-        const emailValue = <?= json_encode($email_value) ?>;
-        const phoneValue = <?= json_encode($phone_value) ?>;
-        const emailInput = document.querySelector('input[name="user_email"]');
-        const phoneInput = document.querySelector('input[name="user_phonenumber"]');
-        if (emailInput) emailInput.value = emailValue || '';
-        if (phoneInput) phoneInput.value = phoneValue || '';
-    })();
 </script>
 </body>
 </html>
