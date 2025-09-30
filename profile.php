@@ -35,7 +35,6 @@ $success = '';
 /* ---------- Fetch user ---------- */
 function getUserData($conn, $user_id)
 {
-    // use `id` (primary key) instead of varchar `user_id`
     $stmt = $conn->prepare("SELECT username, user_email, user_phonenumber, profile_pic FROM users WHERE id = ?");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
@@ -44,15 +43,12 @@ function getUserData($conn, $user_id)
 
 $user = getUserData($conn, $user_id);
 $profile_path = $user['profile_pic'] ?? '';
-$display_pic = (!empty($profile_path) && file_exists(__DIR__ . '/' . $profile_path))
-    ? $profile_path
-    : 'assets/images/uploads/default.png';
+$display_pic = !empty($profile_path) ? $profile_path : 'assets/images/uploads/default.png';
 
 ensureCsrfToken();
 
 /* ---------- Handle POST ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // CSRF check first
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
         $error = "❌ Invalid session token. Please refresh and try again.";
     } else {
@@ -68,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 @mkdir($upload_dir, 0750, true);
             }
 
-            $max_file_size = 5 * 1024 * 1024; // 5MB
+            $max_file_size = 5 * 1024 * 1024;
             $tmp_name = $_FILES['profile_pic']['tmp_name'];
             $orig_name = $_FILES['profile_pic']['name'];
             $size = (int)($_FILES['profile_pic']['size'] ?? 0);
@@ -76,14 +72,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($size <= 0 || $size > $max_file_size) {
                 $error = "❌ Image must be between 1 byte and 5MB.";
             } else {
-                // Server-side MIME check
                 $finfo = new finfo(FILEINFO_MIME_TYPE);
                 $mime = $finfo->file($tmp_name);
                 $allowed_mimes = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
                 if (!array_key_exists($mime, $allowed_mimes)) {
                     $error = "❌ Only JPG, PNG, or GIF images are allowed.";
                 } else {
-                    // Ensure it's a real image + check dimensions
                     $imgInfo = @getimagesize($tmp_name);
                     if ($imgInfo === false) {
                         $error = "❌ Uploaded file is not a valid image.";
@@ -92,7 +86,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($w < 16 || $h < 16 || $w > 8000 || $h > 8000) {
                             $error = "❌ Image dimensions are not acceptable.";
                         } else {
-                            // Build a safe filename: timestamp + random + sanitized original
                             $safeOrig = cleanFilename($orig_name);
                             $rand = bin2hex(random_bytes(4));
                             $filename = time() . "_" . $rand . "_" . $safeOrig;
@@ -101,7 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             if (!move_uploaded_file($tmp_name, $dest)) {
                                 $error = "❌ Failed to upload image.";
                             } else {
-                                // Optionally, restrict permissions
                                 @chmod($dest, 0640);
                                 $target_file = $dest;
                             }
@@ -129,12 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stmt->execute()) {
                 $_SESSION['profile_pic'] = $target_file;
                 $success = "✅ Profile updated successfully.";
-                // Refresh user data for display
                 $user = getUserData($conn, $user_id);
-                $display_pic = (!empty($user['profile_pic']) && file_exists(__DIR__ . '/' . $user['profile_pic']))
-                    ? $user['profile_pic']
-                    : 'assets/images/uploads/default.png';
-                // Rotate CSRF token after successful state change
+                $display_pic = !empty($user['profile_pic']) ? $user['profile_pic'] : 'assets/images/uploads/default.png';
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             } else {
                 $error = "❌ Update failed. Please try again.";
