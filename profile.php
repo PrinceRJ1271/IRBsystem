@@ -35,7 +35,8 @@ $success = '';
 /* ---------- Fetch user ---------- */
 function getUserData($conn, $user_id)
 {
-    $stmt = $conn->prepare("SELECT username, user_email, user_phonenumber, profile_pic FROM users WHERE user_id = ?");
+    // use `id` (primary key) instead of varchar `user_id`
+    $stmt = $conn->prepare("SELECT username, user_email, user_phonenumber, profile_pic FROM users WHERE id = ?");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
@@ -43,7 +44,9 @@ function getUserData($conn, $user_id)
 
 $user = getUserData($conn, $user_id);
 $profile_path = $user['profile_pic'] ?? '';
-$display_pic = (!empty($profile_path) && file_exists($profile_path)) ? $profile_path : 'assets/images/uploads/default.png';
+$display_pic = (!empty($profile_path) && file_exists(__DIR__ . '/' . $profile_path))
+    ? $profile_path
+    : 'assets/images/uploads/default.png';
 
 ensureCsrfToken();
 
@@ -112,15 +115,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($error)) {
             if (!empty($new_password)) {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                // IMPORTANT FIX: use `password` column (not `user_password`)
                 $stmt = $conn->prepare("UPDATE users 
                     SET user_email = ?, user_phonenumber = ?, profile_pic = ?, password = ? 
-                    WHERE user_id = ?");
+                    WHERE id = ?");
                 $stmt->bind_param("ssssi", $email, $phone, $target_file, $hashed_password, $user_id);
             } else {
                 $stmt = $conn->prepare("UPDATE users 
                     SET user_email = ?, user_phonenumber = ?, profile_pic = ? 
-                    WHERE user_id = ?");
+                    WHERE id = ?");
                 $stmt->bind_param("sssi", $email, $phone, $target_file, $user_id);
             }
 
@@ -129,7 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $success = "✅ Profile updated successfully.";
                 // Refresh user data for display
                 $user = getUserData($conn, $user_id);
-                $display_pic = (!empty($user['profile_pic']) && file_exists($user['profile_pic']))
+                $display_pic = (!empty($user['profile_pic']) && file_exists(__DIR__ . '/' . $user['profile_pic']))
                     ? $user['profile_pic']
                     : 'assets/images/uploads/default.png';
                 // Rotate CSRF token after successful state change
